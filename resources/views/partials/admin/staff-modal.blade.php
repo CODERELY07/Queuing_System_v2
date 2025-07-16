@@ -4,7 +4,9 @@
             {{ __($staff ? 'Edit Staff' : 'Add New Staff') }}
         </h2>
 
-        <form method="POST" action="{{ $action }}">
+        <div id="success-message" class="mt-4 hidden"></div>
+        
+        <form method="POST" id="staffForm" data-action="{{ $action }}">
             @csrf
             @if($method === 'PUT')
                 @method('PUT')
@@ -19,7 +21,7 @@
                         type="text"
                         name="name"
                         :value="old('name', $staff?->name)"
-                        required
+                        
                     />
                 </div>
 
@@ -31,7 +33,7 @@
                         type="email"
                         name="email"
                         :value="old('email', $staff?->email)"
-                        required
+                        
                     />
                 </div>
             
@@ -41,7 +43,7 @@
                         id="service_id"
                         name="service_id"
                         class="block mt-1 w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                        required
+                        
                     >
                         <option value=""></option>
                         @foreach ($services as $service)  
@@ -53,12 +55,12 @@
                 @if(!$staff)
                     <div>
                         <x-input-label for="password" :value="__('Password')" />
-                        <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" required />
+                        <x-text-input id="password" class="block mt-1 w-full" type="password" name="password"  />
                     </div>
 
                     <div>
                         <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-                        <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" required />
+                        <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" />
                     </div>
                 @endif
             </div>

@@ -17,6 +17,7 @@ class AdminStaffController extends Controller
         $services = Service::with('users')->get();
         return view('admin.staff', compact('staffs', 'services'));
     }
+
     public function store(Request $request){
         try {
                 $staff = $this->validateStaff($request);
@@ -26,14 +27,14 @@ class AdminStaffController extends Controller
                 $create = User::create($staff);
 
                 if ($create) {
-                    return redirect()->route('admin.staff')->with(['success' => 'Staff added successfully!']);
+                    return response()->json(['status' => 'success','message' => 'Staff Added Successfully!']);
                 } else {
-                    dd('Insert failed');
+                    return response()->json(['status' => 'error', 'message' => 'Insert Failed!']);
                 }
             } catch (QueryException $e) {
-                dd('Database Error: ' . $e->getMessage());
+                   return response()->json(['status' => 'error', 'message' =>  $e->getMessage()]);
             } catch (\Exception $e) {
-                dd('General Error: ' . $e->getMessage());
+                  return response()->json(['status' => 'error', 'message' =>  $e->getMessage()]);
             }
     }
     public function update($id){
