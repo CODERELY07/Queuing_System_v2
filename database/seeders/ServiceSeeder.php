@@ -11,15 +11,18 @@ class ServiceSeeder extends Seeder
     {
         
         $services = [
-            'Registration',
-            'Doctor Consultation',
-            'Pharmacy',
-            'Emergency',
-            'Admin'
+            ['name' => 'Registration', 'prefix' => 'R'],
+            ['name' => 'Doctor Consultation', 'prefix' => 'D'],
+            ['name' => 'Pharmacy' , 'prefix' => 'P'],
+            ['name' => 'Emergency' , 'prefix' => 'E'],
+            ['name' => 'Admin' , 'prefix' => 'A'],
         ];
 
-        foreach ($services as $name) {
-            Service::firstOrCreate(['name' => $name]);
+        foreach ($services as $service) {
+            Service::firstOrCreate(
+                ['name' => $service['name']],
+                ['prefix' => $service['prefix']]
+            );
         }
     }
 }

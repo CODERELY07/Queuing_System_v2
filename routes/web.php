@@ -1,16 +1,18 @@
 <?php
 
 use App\Http\Controllers\AdminStaffController;
+use App\Http\Controllers\ClientQueueController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('kiosk.index');
-})->name('home');
+// Route::get('/', function () {
+//     return view('kiosk.index');
+// })->name('home');
 
-Route::get('/admin/dashboard', function () {
-    return view('admin.dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Dashboard
+Route::get('/dashboard', [UserController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -18,20 +20,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('/', function () {
-    return view('kiosk.index');
-})->name('home');
-
-// Kiosk Routes
-Route::prefix('kiosk')->group(function () {
-    Route::get('/', function () {
-        return view('kiosk.index');
-    })->name('kiosk');
-    
-    Route::get('/ticket', function () {
-        return view('kiosk.ticket');
-    })->name('kiosk.ticket');
-});
 
 // Display Routes
 Route::prefix('display')->group(function () {
@@ -46,10 +34,10 @@ Route::prefix('staff')->group(function () {
         return view('staff.dashboard');
     })->name('staff.dashboard');
     
-    Route::get('/call', function () {
-        return view('staff.call');
-    })->name('staff.call');
+    Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
+    Route::get('/dashboard-data', [StaffController::class, 'data']);
 });
+
 
 // Admin Routes
 Route::prefix('admin')->middleware(['auth', 'verified'])->group(function () {
@@ -65,14 +53,23 @@ Route::prefix('admin')->middleware(['auth', 'verified'])->group(function () {
         return view('admin.analytics');
     })->name('admin.analytics');
 
-    // Crud
-    Route::controller(AdminStaffController::class)->group(function(){
-        Route::get('/staff', action: 'index')->name('admin.staff');
+     // CRUD
+    Route::controller(App\Http\Controllers\AdminStaffController::class)->group(function () {
+        Route::get('/staff', 'index')->name('admin.staff');
         Route::post('/store', 'store')->name('staff.store');
-        Route::post('/udpate/{id}', 'update')->name('staff.update');
+        Route::put('/staff/update/{id}', 'update')->name('staff.update');
+        Route::delete('/staff/destroy/{id}', 'destroy')->name('staff.destroy'); 
     });
 });
 
+// Queues Route
+Route::prefix('kiosk')->name('kiosk')->group(function () {
+    Route::controller(ClientQueueController::class)->group(function () {
+        Route::get('/', 'index');
+        // Route::get('/ticket', 'kiosk.ticket')->name('.ticket');
+        Route::post('/', 'store')->name('.store');  
+    });
+});
 
 
 require __DIR__.'/auth.php';

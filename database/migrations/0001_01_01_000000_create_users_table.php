@@ -15,21 +15,22 @@ return new class extends Migration
         Schema::create('services', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique(); 
+            $table->string('prefix', 5); 
             $table->timestamps();
         });
 
-        // Users table with service_id foreign key
-        Schema::create('users', function (Blueprint $table) {
+       Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->enum('user_type', ['admin', 'staff', 'client']);
-            $table->foreignId('service_id')->constrained()->onDelete('cascade'); 
+            $table->enum('user_type', ['admin', 'staff']);
+            $table->foreignId('service_id')->constrained()->onDelete('cascade');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
             $table->timestamps();
         });
+
 
         // Password reset tokens
         Schema::create('password_reset_tokens', function (Blueprint $table) {

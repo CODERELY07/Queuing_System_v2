@@ -1,12 +1,21 @@
 <x-modal name="{{ $staff ? 'edit-staff-' . $staff->id : 'create-staff' }}" focusable>
+
     <div class="p-6">
         <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
             {{ __($staff ? 'Edit Staff' : 'Add New Staff') }}
         </h2>
 
-        <div id="success-message" class="mt-4 hidden"></div>
-        
-        <form method="POST" id="staffForm" data-action="{{ $action }}">
+        {{-- @if ($staff)
+            <div id="success-message-update" class="mt-4 hidden"></div>
+           
+        @else
+             <div id="success-message-store" class="mt-4 hidden"></div>
+        @endif
+
+         --}}
+
+      
+        <form method="POST" id="staffForm-{{ $staff?->id ?? 'new' }}" data-action="{{ $action }}">
             @csrf
             @if($method === 'PUT')
                 @method('PUT')
@@ -47,22 +56,26 @@
                     >
                         <option value=""></option>
                         @foreach ($services as $service)  
-                            <option value={{ $service->id }}>{{ $service->name}}</option>
+                            <option value="{{ $service->id }}" {{ (old('service_id', $staff?->service_id) == $service->id) ? 'selected' : '' }}>
+                                {{ $service->name }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
                 
-                @if(!$staff)
-                    <div>
-                        <x-input-label for="password" :value="__('Password')" />
-                        <x-text-input id="password" class="block mt-1 w-full" type="password" name="password"  />
-                    </div>
+    
+            <div>
+                <x-input-label for="password" :value="__('Password')" />
+                <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" />
+            </div>
 
-                    <div>
-                        <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-                        <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation" />
-                    </div>
-                @endif
+            <div>
+                <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+                <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation"/>
+            </div>
+
+             
+                    
             </div>
 
             <div class="flex justify-end mt-6">

@@ -11,4 +11,8 @@ class Service extends Model
     {
         return $this->hasMany(User::class);
     }
+    public function clientQueues()
+    {
+        return $this->hasMany(ClientQueues::class);
+    }
 }

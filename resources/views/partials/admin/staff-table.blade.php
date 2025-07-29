@@ -44,12 +44,32 @@
                         {{ $isActive }}
                     </span>
                 </td> --}}
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">Edit</button>
-                    <button class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">Delete</button>
+                <td class="px-6 flex justify-end items-center py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <x-primary-button 
+                    x-data=""
+                    x-on:click.prevent="$dispatch('open-modal', 'edit-staff-{{ $staff->id }}')"
+                    class="text-blue-600 bg-blue-500 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3">
+                    {{ __('Edit') }}
+                </x-primary-button>
+                   <form data-action="{{ route('staff.destroy', $staff->id) }}" method="POST" id="staff-delete">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300">
+                        Delete
+                    </button>
+                </form>
+
                 </td>
+
+                {{-- Edit modal --}}
+                @include('partials.admin.staff-modal', [
+                    'key' => 'Edit Staff',
+                    'action' => route('staff.update', $staff->id),
+                    'method' => 'PUT',
+                    'staff' => $staff,
+                ])
+
             </tr>
         @endforeach
-    
     </tbody>
 </table>

@@ -36,11 +36,5 @@
         'staff' => null,
     ])
 
-    {{-- @include('partials.admin.staff-modal', [
-        'key' => 'Edit Staff',
-        'action' => route('staff.update', $staff->id),
-        'method' => 'PUT',
-        'staff' => $staff,
-    ]) --}}
 
 </x-app-layout>

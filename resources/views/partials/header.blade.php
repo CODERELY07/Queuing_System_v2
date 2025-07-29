@@ -1,4 +1,4 @@
-<header class="bg-white shadow-md">
+<header class="bg-white shadow-md w-full">
   <div class="container mx-auto px-4">
     <div class="flex justify-between items-center py-4">
       <!-- Logo/Brand -->
@@ -13,8 +13,7 @@
         <ul class="flex space-x-8">
           <li><a href="{{ route('kiosk') }}" class="text-gray-700 hover:text-blue-600 font-medium">Kiosk</a></li>
           <li><a href="{{ route('display') }}" class="text-gray-700 hover:text-blue-600 font-medium">Queue Display</a></li>
-          <li><a href="{{ route('staff.dashboard') }}" class="text-gray-700 hover:text-blue-600 font-medium">Staff</a></li>
-          <li><a href="{{ route('admin') }}" class="text-gray-700 hover:text-blue-600 font-medium">Admin</a></li>
+          <li><a href="{{ route('admin') }}" class="text-gray-700 hover:text-blue-600 font-medium">Login</a></li>
         </ul>
       </nav>
 
