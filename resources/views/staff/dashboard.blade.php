@@ -20,9 +20,13 @@
                     <!-- Quick Actions -->
                     <div class="bg-white p-6 rounded-lg shadow">
                         <h3 class="font-bold text-lg mb-4">Quick Actions</h3>
-                        <h2 id="waiting-patient-number"  class="text-3xl font-bold text-center"></h2>
-                        <h2 id="waiting-patient-name" class="text-lg p-2 mb-4 text-center"></h2>
-                         <button id="call-next-btn" class="bg-green-500 px-4 py-2 rounded-lg w-full mb-2">
+                        <h2 id="serving-patient-number"  class="text-3xl font-bold text-center"></h2>
+                        <h2 id="serving-patient-name" class="text-lg p-2 mb-4 text-center"></h2>
+                        
+                         <button id="call-prev-btn" class="bg-green-500 px-4 py-2 rounded-lg w-full mb-2">
+                            Call Prev Patient
+                        </button>
+                         <button id="call-next-btn" class="bg-blue-500 px-4 py-2 rounded-lg w-full mb-2">
                             Call Next Patient
                         </button>
                     </div>

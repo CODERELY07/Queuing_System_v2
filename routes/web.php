@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\ClientQueueController;
+use App\Http\Controllers\DisplayAllQueueController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\UserController;
@@ -23,9 +24,8 @@ Route::middleware('auth')->group(function () {
 
 // Display Routes
 Route::prefix('display')->group(function () {
-    Route::get('/', function () {
-        return view('display.counter');
-    })->name('display');
+    Route::get('/', [DisplayAllQueueController::class, 'index'])->name('display');
+    Route::get('/serving-patients', [DisplayAllQueueController::class, 'servingPatients']);
 });
 
 // Staff Routes
@@ -35,6 +35,7 @@ Route::prefix('staff')->group(function () {
     })->name('staff.dashboard');
     
     Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
+    Route::post('/call-previous', [StaffController::class, 'callPrevious']);
     Route::get('/dashboard-data', [StaffController::class, 'data']);
 });
 
@@ -70,6 +71,9 @@ Route::prefix('kiosk')->name('kiosk')->group(function () {
         Route::post('/', 'store')->name('.store');  
     });
 });
+
+
+
 
 
 require __DIR__.'/auth.php';

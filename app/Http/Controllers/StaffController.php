@@ -21,24 +21,36 @@ class StaffController extends Controller
 
         $waitingCount = ClientQueues::where('status', 'waiting')->where('service_id', $service)->count();
 
-        $waitingPatient = ClientQueues::where('status', 'waiting')
+        $servingPatient = ClientQueues::where('status', 'serving')
         ->where('service_id', $service)
         ->orderBy('queue_number')
         ->first();
 
-        if ($waitingPatient) {
+        
+        if ($servingPatient) {
             $formatted = [
-                'number' => $waitingPatient->service->prefix . '-' . str_pad($waitingPatient->queue_number, 3, '0', STR_PAD_LEFT),
-                'name' => ucfirst($waitingPatient->name),
+                'number' => $servingPatient->service->prefix . '-' . str_pad($servingPatient->queue_number, 3, '0', STR_PAD_LEFT),
+                'name' => ucfirst($servingPatient->name),
             ];
         } else {
-            $formatted = null;
+            if($waitingCount > 0){
+                $formatted = [
+                    'number' => "Start Queue",
+                    'name' => "Patient is waiting...",
+                ];
+            }else{
+                 $formatted = [
+                    'number' => "No Queue",
+                    'name' => "No work",
+                ];
+            }
+           
         }
 
         return response()->json([
             'waiting' => $waitingCount,
             'recent' => $recent,
-            'waitingPatient' => $formatted
+            'servingPatient' => $formatted
         ]);
     }
 
@@ -46,22 +58,53 @@ class StaffController extends Controller
     {
         $service = Auth::user()->service_id;
 
-        $next = ClientQueues::where('status', 'waiting')
+        $waiting = ClientQueues::where('status', 'waiting')
             ->where('service_id', $service)
             ->orderBy('queue_number')
             ->first();
 
-        if ($next) {
-            // Update status to 'serving'
-            $next->update(['status' => 'serving']);
+        $next = ClientQueues::where('status', 'serving')
+            ->where('service_id', $service)
+            ->orderBy('queue_number')
+            ->first();
+    
+        if (!empty($waiting) || !empty($next)) {
+             $waiting?->update(['status' => 'serving']);
+            $next?->update(['status' => 'finish']);
 
-            // Format the number (e.g., SVC-001)
-            $number = $next->service->prefix . '-' . str_pad($next->queue_number, 3, '0', STR_PAD_LEFT);
+            $active = $waiting ?? $next; 
+            $number = $active->service->prefix . '-' . str_pad($active->queue_number, 3, '0', STR_PAD_LEFT);
         } else {
             $number = 'None';
         }
 
         return response()->json(['number' => $number]);
     }
+
+    public function callPrevious()
+    {
+        $serviceId = Auth::user()->service_id;
+
+        $current = ClientQueues::where('status', 'serving')
+            ->where('service_id', $serviceId)
+            ->first();
+
+        $previous = ClientQueues::where('service_id', $serviceId)
+            ->where('status', 'finish')
+            ->orderBy('queue_number', 'desc')
+            ->first();
+        
+        if ($previous) {
+            $current?->update(['status' => 'waiting']);
+            $previous?->update(['status' => 'serving']);
+
+            $number = $previous->service->prefix . '-' . str_pad($previous->queue_number, 3, '0', STR_PAD_LEFT);
+        } else {
+            $number = 'None';
+        }
+
+        return response()->json(['number' => $number]);
+    }
+
 
 }
