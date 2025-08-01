@@ -22,7 +22,6 @@ class DisplayAllQueueController extends Controller
         }])
         ->get();
 
-
         $result = $services->map(function ($service) {
             $serving = $service->clientQueues->first();
             return [

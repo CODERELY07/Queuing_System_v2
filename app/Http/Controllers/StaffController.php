@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\QueueCallEvent;
+use App\Events\QueueNextEvent;
 use App\Http\Controllers\Controller;
 use App\Models\ClientQueues;
 use Illuminate\Http\Request;
@@ -68,15 +70,23 @@ class StaffController extends Controller
             ->orderBy('queue_number')
             ->first();
     
-        if (!empty($waiting) || !empty($next)) {
-             $waiting?->update(['status' => 'serving']);
-            $next?->update(['status' => 'finish']);
+       if (!empty($waiting) || !empty($next)) {
+            if (!empty($waiting)) {
+                event(new QueueNextEvent($waiting));
+                $waiting->update(['status' => 'serving']);
+            }
 
+            if (!empty($next)) {
+                event(new QueueNextEvent($next));
+                $next->update(['status' => 'finish']);
+            }
             $active = $waiting ?? $next; 
             $number = $active->service->prefix . '-' . str_pad($active->queue_number, 3, '0', STR_PAD_LEFT);
+
         } else {
             $number = 'None';
         }
+
 
         return response()->json(['number' => $number]);
     }
@@ -95,6 +105,7 @@ class StaffController extends Controller
             ->first();
         
         if ($previous) {
+            event(new QueueNextEvent($previous));
             $current?->update(['status' => 'waiting']);
             $previous?->update(['status' => 'serving']);
 
@@ -106,5 +117,15 @@ class StaffController extends Controller
         return response()->json(['number' => $number]);
     }
 
+    public function call(){
+         $serviceId = Auth::user()->service_id;
+
+        $current = ClientQueues::where('status', 'serving')
+            ->where('service_id', $serviceId)
+            ->first();
+        event(new QueueCallEvent($current));
+        
+        return response()->json(['success' => true]);
+    }
 
 }

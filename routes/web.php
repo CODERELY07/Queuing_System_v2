@@ -36,6 +36,7 @@ Route::prefix('staff')->group(function () {
     
     Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
     Route::post('/call-previous', [StaffController::class, 'callPrevious']);
+    Route::post('/call', [StaffController::class, 'call']);
     Route::get('/dashboard-data', [StaffController::class, 'data']);
 });
 
