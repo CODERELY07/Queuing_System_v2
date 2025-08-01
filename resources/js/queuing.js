@@ -4,7 +4,7 @@ document.addEventListener("DOMContentLoaded", function () {
     call('call-next-btn');
     call('call-prev-btn');
     call('call');
-
+    loadDashboardData();
 
     let selectedVoice = null;
     const synth = window.speechSynthesis;
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 v.lang === 'en-US' && v.name === "Google US English"
             ) || voices[0];
 
-            console.log("Voice:", selectedVoice);
+            // console.log("Voice:", selectedVoice);
         }
     }
 
@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
     window.Echo.channel('queue').listen('.queue.call', (event) => {
-        console.log('Event received:', event);
+        // console.log('Event received:', event);
         VoiceQueue(event);
         displayQeueue(event);
     });
@@ -63,36 +63,42 @@ document.addEventListener("DOMContentLoaded", function () {
  
 
 
-    function displayQeueue(){
+     function displayQeueue(){
         // Display
-        fetch('/display/serving-patients')
-        .then(response => response.json())
-        .then(data => {
+        if(window.location.pathname === "/display"){
+             fetch('/display/serving-patients')
+            .then(response => response.json())
+            .then(data => {
+            
+                const container = document.getElementById('serving-list');
+                container.innerHTML = ''; 
+
+                data.forEach(service => {
+                    const servingInfo = service.serving
+                        ? `<p class="font-bold text-7xl text-center text-blue-600 animate-pulse">${service.serving.number}</p>
+                        <p class="text-gray-700 dark:text-gray-300 text-center text-xl mt-2 font-medium">${service.serving.name}</p>`
+                        : `<span class="italic text-gray-500 dark:text-gray-400 text-center block py-8">No patient being served</span>`;
+
+                    container.innerHTML += `
+                        <div class="bg-white dark:bg-gray-800 shadow-lg rounded-2xl p-6 border border-gray-200 dark:border-gray-700 transition-all hover:shadow-xl">
+                            <h4 class="text-2xl font-bold text-gray-800 dark:text-white mb-4 text-center">${service.service_name}</h4>
+                            <div class="min-h-32 flex flex-col justify-center">
+                                ${servingInfo}
+                            </div>
+                        </div>
+                    `;
+                });
+            })
+            .catch(error => console.error('Error fetching serving patients:', error));
+            }
         
-            const container = document.getElementById('serving-list');
-            container.innerHTML = ''; 
-
-            data.forEach(service => {
-                const servingInfo = service.serving
-                    ? `<p class="font-semibold text-6xl text-center text-blue-600">${service.serving.number}</p><p class="text-gray-700 text-center text-2xl">${service.serving.name}</p>`
-                    : `<span class="italic text-gray-400">No patient being served</span>`;
-
-                container.innerHTML += `
-                    <div class="bg-white shadow-md rounded-xl p-4 mb-4 border border-gray-100">
-                        <h4 class="text-3xl font-bold text-gray-800 mb-2">${service.service_name}</h4>
-                        <p class="text-base">${servingInfo}</p>
-                    </div>
-                `;
-            });
-        })
-        .catch(error => console.error('Error fetching serving patients:', error));
-
     }
 
 
     // Staff Dashboard 
     function loadDashboardData() {
-        fetch('/staff/dashboard-data')
+        if(window.location.pathname === "/dashboard/staff"){
+            fetch('/staff/dashboard-data')
             .then(response => response.json())
             .then(data => {
               
@@ -108,9 +114,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     recentList.appendChild(li);
                 });
             });
+        }
+     
     }
 
-    loadDashboardData();
+ 
 
     // Next 
     function call(id) {
@@ -140,7 +148,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => res.json())
             .then(data => {
-                console.log(data);
+                // console.log(data);
                 loadDashboardData(); 
             })
             .catch(err => console.error('Error:', err));

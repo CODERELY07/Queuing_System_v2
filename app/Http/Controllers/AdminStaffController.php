@@ -13,11 +13,11 @@ use Illuminate\Support\Facades\Hash;
 
 class AdminStaffController extends Controller
 {
-    public function index(){
-        $staffs = User::where('user_type', 'staff')->with('service')->latest()->get();
-        $services = Service::with('users')->get();
-        return view('admin.staff', compact('staffs', 'services'));
-    }
+        public function index(){
+            $staffs = User::where('user_type', 'staff')->with('service')->latest()->get();
+            $services = Service::with('users')->get();
+            return view('admin.staff', compact('staffs', 'services'));
+        }
 
     public function store(Request $request){
         try {

@@ -23,13 +23,13 @@
                         <h2 id="serving-patient-number"  class="text-3xl font-bold text-center"></h2>
                         <h2 id="serving-patient-name" class="text-lg p-2 mb-4 text-center"></h2>
                         
-                         <button id="call-prev-btn" class="bg-green-500 px-4 py-2 rounded-lg w-full mb-2">
+                         <button id="call-prev-btn" class="bg-green-500 px-4 text-gray-200 py-2 rounded-lg w-full mb-2">
                             Prev Patient
                         </button>
-                         <button id="call" class="bg-blue-500 px-4 py-2 rounded-lg w-full mb-2">
+                         <button id="call" class="bg-sky-500 text-gray-200 px-4 py-2 rounded-lg w-full mb-2">
                             Call 
                         </button>
-                         <button id="call-next-btn" class="bg-blue-500 px-4 py-2 rounded-lg w-full mb-2">
+                         <button id="call-next-btn" class="bg-blue-500 text-gray-200 px-4 py-2 rounded-lg w-full mb-2">
                             Next Patient
                         </button>
                     </div>

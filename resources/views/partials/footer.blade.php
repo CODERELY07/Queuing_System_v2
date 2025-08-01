@@ -13,8 +13,7 @@
         <ul class="space-y-2">
           <li><a href="{{ route('kiosk') }}" class="text-gray-400 hover:text-white">Patient Kiosk</a></li>
           <li><a href="{{ route('display') }}" class="text-gray-400 hover:text-white">Queue Display</a></li>
-          <li><a href="#" class="text-gray-400 hover:text-white">Staff Login</a></li>
-          <li><a href="#" class="text-gray-400 hover:text-white">Admin Portal</a></li>
+          <li><a href={{ route('login') }} class="text-gray-400 hover:text-white">Login</a></li>
         </ul>
       </div>
 

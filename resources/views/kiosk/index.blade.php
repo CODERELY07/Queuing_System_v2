@@ -5,9 +5,9 @@
         </h2>
     </x-slot>
 
-    <div class="py-12 mx-auto">
-        <div class="w-full mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+    <div class="py-12">
+        <div class="max-w-7xl mx-auto flex justify-center items-center flex-col text-center">
+            <div>
                 @if ($errors->any())
                     <div class="bg-red-100 text-red-700 p-3 rounded mb-4">
                         <ul>
@@ -18,7 +18,7 @@
                     </div>
                 @endif
 
-                <div class="mx-auto bg-white rounded-xl shadow-md p-8">
+                <div class="mx-auto rounded-xl shadow-md sm:w-[400px] w-[300px] p-8">
                     <h1 class="text-2xl font-bold text-center mb-6">Queue Registration</h1>
 
                     <form method="POST" action="{{ route('kiosk.store') }}">

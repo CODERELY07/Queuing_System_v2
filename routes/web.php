@@ -6,14 +6,24 @@ use App\Http\Controllers\DisplayAllQueueController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-// Route::get('/', function () {
-//     return view('kiosk.index');
-// })->name('home');
+Route::get('/', function () {
+    return view('home');
+})->name('home');
 
 // Dashboard
-Route::get('/dashboard', [UserController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard/{user_type}', [UserController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');Route::get('/dashboard', function () {
+    $user = Auth::user();
+    return redirect()->route('dashboard.with_type', ['user_type' => $user->user_type]);
+})->middleware(['auth', 'verified'])->name('dashboard');
+
+
+Route::get('/dashboard/{user_type}', [UserController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard.with_type');
+
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -30,9 +40,9 @@ Route::prefix('display')->group(function () {
 
 // Staff Routes
 Route::prefix('staff')->group(function () {
-    Route::get('/', function () {
-        return view('staff.dashboard');
-    })->name('staff.dashboard');
+    // Route::get('/', function () {
+    //     return view('staff.dashboard');
+    // })->name('staff.dashboard');
     
     Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
     Route::post('/call-previous', [StaffController::class, 'callPrevious']);
@@ -51,10 +61,6 @@ Route::prefix('admin')->middleware(['auth', 'verified'])->group(function () {
         return view('admin.queues');
     })->name('admin.queues');
     
-    Route::get('/analytics', function () {
-        return view('admin.analytics');
-    })->name('admin.analytics');
-
      // CRUD
     Route::controller(App\Http\Controllers\AdminStaffController::class)->group(function () {
         Route::get('/staff', 'index')->name('admin.staff');

@@ -18,7 +18,7 @@ class ClientQueueController extends Controller
     public function store(Request $request)
         {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|',
+            'name' => 'required|string|max:255|unique:client_queues,name',
             'service_id' => 'required|exists:services,id',
         ]);
 

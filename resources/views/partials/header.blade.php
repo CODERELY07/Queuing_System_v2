@@ -1,13 +1,14 @@
-<header class="bg-white shadow-md w-full">
+<header class="bg-white shadow-md fixed z-10 top-0 left-0 w-full">
   <div class="container mx-auto px-4">
     <div class="flex justify-between items-center py-4">
       <!-- Logo/Brand -->
-      <div class="flex items-center space-x-2">
+      <a class="flex items-center space-x-2" href={{ route('home') }}>
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
+        
         <span class="text-xl font-bold text-blue-600">MedQueue</span>
-      </div>
+      </a>
       <!-- Main Navigation -->
       <nav class="hidden md:block">
         <ul class="flex space-x-8">
@@ -32,8 +33,8 @@
       <ul class="space-y-2">
         <li><a href="{{ route('kiosk') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Kiosk</a></li>
         <li><a href="{{ route('display') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Queue Display</a></li>
-        <li><a href="{{ route('staff.dashboard') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Staff</a></li>
-        <li><a href="{{ route('admin') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Admin</a></li>
+        <li><a href="{{ route('admin') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Login</a></li>
+     
       </ul>
     </div>
   </div>
