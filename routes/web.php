@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminQueueController;
 use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\ClientQueueController;
 use App\Http\Controllers\DisplayAllQueueController;
@@ -47,6 +48,7 @@ Route::prefix('staff')->group(function () {
     Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
     Route::post('/call-previous', [StaffController::class, 'callPrevious']);
     Route::post('/call', [StaffController::class, 'call']);
+    Route::post('/call/{id}', [StaffController::class, 'selectedCall']);
     Route::get('/dashboard-data', [StaffController::class, 'data']);
 });
 
@@ -57,9 +59,11 @@ Route::prefix('admin')->middleware(['auth', 'verified'])->group(function () {
         return view('admin.index');
     })->name('admin');
 
-    Route::get('/queues', function () {
-        return view('admin.queues');
-    })->name('admin.queues');
+    Route::resource('queues', AdminQueueController::class)->names([
+        'index' => 'admin.queues',
+    ]);
+
+    Route::delete('/delete-old', [AdminQueueController::class, 'deleteOld'])->name('queues.deleteOld');
     
      // CRUD
     Route::controller(App\Http\Controllers\AdminStaffController::class)->group(function () {

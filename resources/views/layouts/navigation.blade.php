@@ -39,6 +39,9 @@
                             <x-dropdown-link :href="route('admin.staff')">
                                 {{ __('Staff') }}
                             </x-dropdown-link>
+                            <x-dropdown-link :href="route('admin.queues')">
+                                {{ __('Queues') }}
+                            </x-dropdown-link>
                         @endif
                         <x-dropdown-link :href="route('profile.edit')">
                             {{ __('Profile') }}
@@ -88,6 +91,9 @@
                    @if (Auth::user()->user_type === 'admin')
                         <x-dropdown-link :href="route('admin.staff')">
                             {{ __('Staff') }}
+                        </x-dropdown-link>
+                        <x-dropdown-link :href="route('admin.queues')">
+                            {{ __('Queues') }}
                         </x-dropdown-link>
                     @endif
                 <x-responsive-nav-link :href="route('profile.edit')">

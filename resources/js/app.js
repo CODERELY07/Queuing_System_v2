@@ -1,7 +1,8 @@
 import './bootstrap';
+import './queuing';
 import './print';
 import './staff';
-import './queuing';
+
 import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;

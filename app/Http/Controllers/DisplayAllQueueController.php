@@ -22,17 +22,17 @@ class DisplayAllQueueController extends Controller
         }])
         ->get();
 
-        $result = $services->map(function ($service) {
-            $serving = $service->clientQueues->first();
-            return [
-                'service_name' => $service->name,
-                'service_prefix' => $service->prefix,
-                'serving' => $serving ? [
-                    'number' => $service->prefix . '-' . str_pad($serving->queue_number, 3, '0', STR_PAD_LEFT),
-                    'name' => $serving->name,
-                ] : null,
-            ];
-        });
+            $result = $services->map(function ($service) {
+                $serving = $service->clientQueues->first();
+                return [
+                    'service_name' => $service->name,
+                    'service_prefix' => $service->prefix,
+                    'serving' => $serving ? [
+                        'number' => $service->prefix . '-' . str_pad($serving->queue_number, 3, '0', STR_PAD_LEFT),
+                        'name' => $serving->name,
+                    ] : null,
+                ];
+            });
 
         return response()->json($result);
     }

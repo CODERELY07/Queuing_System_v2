@@ -12,14 +12,15 @@ class UserController extends Controller
 {
     public function index($user_type){
         if (auth()->user()->user_type !== $user_type) {
-            abort(403); // or redirect
+            abort(403); 
         }
         $id = Auth::user()->id;
         $user = User::where('id', $id)->with('service')->first();
 
         if(Auth::check()){
             if(Auth::user()->user_type == "staff"){
-                  return view("{$user_type}.dashboard",compact('user'));
+                $queues = ClientQueues::where('service_id', $user->service_id)->paginate(5);
+                return view("{$user_type}.dashboard",compact('user', 'queues'));
             }else if(Auth::user()->user_type == 'admin'){
                 $activeStaffCount = User::where('user_type', 'staff')
                             ->where('last_seen', '>=', now()->subMinutes(5))

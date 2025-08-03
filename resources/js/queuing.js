@@ -1,9 +1,75 @@
 document.addEventListener("DOMContentLoaded", function () {
-    // NOTE:: THis need to update it should no console error message in every page
+        // call Selected
+        document.querySelectorAll('.selected-call').forEach(button => {
+            button.addEventListener('click', function handleClick() {
+                const param = this.getAttribute('data-id');
+                const id = this.getAttribute('id');
+
+                if (this.disabled) return;
+
+            
+                call(id, param); 
+                this.click();  
+                this.disabled = true;
+                console.log('first call');
+
+                setTimeout(() => {
+                    this.disabled = false; 
+                }, 3000);
+            });
+        });
+
+
+     function call(id, param = "") {
+        const button = document.getElementById(id);
+        if (!button) return;
+
+
+        let endpoint = '';
+
+        if (id === 'call-next-btn') {
+            endpoint = '/staff/call-next';
+        } else if (id === 'call-prev-btn') {
+            endpoint = '/staff/call-previous';
+        } else if(id === 'call'){
+            endpoint = '/staff/call';
+        }else if(id === `selected-call-${param}`){
+            endpoint = `/staff/call/${param}`;
+        }
+        else {
+            console.warn('Unknown button ID:', id);
+            return;
+        }
+
+        
+        button.addEventListener('click', function () {
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log(data);
+                loadDashboardData(); 
+                if(endpoint == `/staff/call/${param}`){
+                    location.reload();
+                }
+          
+                return;
+            })
+            .catch(err => console.error('Error:', err));
+        });
+    }
     displayQeueue();
     call('call-next-btn');
     call('call-prev-btn');
     call('call');
+
+   
+
     loadDashboardData();
 
     let selectedVoice = null;
@@ -121,38 +187,6 @@ document.addEventListener("DOMContentLoaded", function () {
  
 
     // Next 
-    function call(id) {
-        const button = document.getElementById(id);
-        if (!button) return;
-
-        let endpoint = '';
-
-        if (id === 'call-next-btn') {
-            endpoint = '/staff/call-next';
-        } else if (id === 'call-prev-btn') {
-            endpoint = '/staff/call-previous';
-        } else if(id === 'call'){
-            endpoint = '/staff/call';
-        }else {
-            console.warn('Unknown button ID:', id);
-            return;
-        }
-
-        button.addEventListener('click', function () {
-            fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-            })
-            .then(res => res.json())
-            .then(data => {
-                // console.log(data);
-                loadDashboardData(); 
-            })
-            .catch(err => console.error('Error:', err));
-        });
-    }
+    
 });
 

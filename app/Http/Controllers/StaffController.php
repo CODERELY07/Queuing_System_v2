@@ -128,4 +128,23 @@ class StaffController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function selectedCall($id){
+        $serviceId = Auth::user()->service_id;
+
+        $current = ClientQueues::where('status', 'serving')
+        ->where('service_id', $serviceId)
+        ->first();
+
+        $current->update(['status' => 'waiting']);
+
+        $next = ClientQueues::where('id', $id)
+            ->where('service_id', operator: $serviceId)
+            ->first();
+
+        $next->update(['status' => 'serving']);
+        event(new QueueCallEvent($next));
+        
+        return response()->json(['success' => true]);
+    }
+
 }
