@@ -1,3 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-    </svg>
+{{-- Brand mark: a pulse/EKG line inside a ring — the "heartbeat" reading
+     as both "healthcare" and "live status", matching what the app
+     actually does (a real-time queue). Used as the logo everywhere:
+     header, footer, and the sidebar's dashboard-home tile. --}}
+<svg {{ $attributes->merge(['class' => 'h-8 w-8 text-brand-600']) }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="9" />
+    <path stroke-linecap="round" stroke-linejoin="round" d="M4 12h4l2-6 3 12 2-6h5" />
+</svg>

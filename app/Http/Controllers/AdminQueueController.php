@@ -13,8 +13,18 @@ class AdminQueueController extends Controller
      */
     public function index()
     {
-        $queues = ClientQueues::with('service')->paginate(5);
-        return view('admin.queues', compact('queues'));
+        $queues = ClientQueues::with('service')
+            ->search(request('q'))
+            ->sortBy(request('sort'), request('dir'))
+            ->paginate(5)
+            ->withQueryString();
+
+        $today = ClientQueues::whereDate('created_at', now());
+        $waitingToday = (clone $today)->where('status', 'waiting')->count();
+        $skippedToday = (clone $today)->where('status', 'skipped')->count();
+        $finishedToday = (clone $today)->where('status', 'finish')->count();
+
+        return view('admin.queues', compact('queues', 'waitingToday', 'skippedToday', 'finishedToday'));
     }
 
     /**

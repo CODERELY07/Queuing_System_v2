@@ -20,11 +20,13 @@ class ClientQueueController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255|unique:client_queues,name',
             'service_id' => 'required|exists:services,id',
+            'priority' => 'sometimes|boolean',
         ]);
 
+        $priority = $request->boolean('priority');
         $queue = null;
 
-        DB::transaction(function () use ($validated, &$queue) {
+        DB::transaction(function () use ($validated, $priority, &$queue) {
             $last = ClientQueues::where('service_id', $validated['service_id'])
                 ->lockForUpdate()
                 ->max('queue_number');
@@ -35,14 +37,13 @@ class ClientQueueController extends Controller
                 'name' => $validated['name'],
                 'service_id' => $validated['service_id'],
                 'queue_number' => $next,
+                'priority' => $priority,
             ]);
         });
 
-        $prefix = Service::find($validated['service_id'])->prefix ?? 'Q';
+        $queue->setRelation('service', Service::find($validated['service_id']));
 
-        $queue->prefix = $prefix;
-
-        $estimatedWaitTime = $queue->queue_number * 2; 
+        $estimatedWaitTime = $queue->queue_number * 2;
 
         return view('kiosk.ticket', [
             'queue' => $queue,

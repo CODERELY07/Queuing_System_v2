@@ -11,42 +11,45 @@ use Illuminate\Support\Facades\Auth;
 
 class StaffController extends Controller
 {
-      public function data()
+    public function data()
     {
-        $service = Auth::user()->service_id;
-        $recent = ClientQueues::where('status', 'waiting')->where('service_id', $service)->take(3)->get()->map(function ($q) {
+        $service = $this->currentServiceId();
+
+        $recent = ClientQueues::status('waiting')->forService($service)->nextInLine()->take(3)->get()->map(function ($q) {
             return [
-                'number' => $q->service->prefix . '-' . str_pad($q->queue_number, 3, '0', STR_PAD_LEFT),
+                'number' => $q->formattedNumber(),
                 'status' => ucfirst($q->status),
+                'priority' => $q->priority,
             ];
         });
 
-        $waitingCount = ClientQueues::where('status', 'waiting')->where('service_id', $service)->count();
+        // Scoped to today so this matches the "Waiting today" stat card the
+        // staff dashboard renders server-side and then keeps polling here.
+        $waitingCount = ClientQueues::status('waiting')->forService($service)->whereDate('created_at', now())->count();
 
-        $servingPatient = ClientQueues::where('status', 'serving')
-        ->where('service_id', $service)
-        ->orderBy('queue_number')
-        ->first();
+        $servingPatient = ClientQueues::status('serving')
+            ->forService($service)
+            ->orderBy('queue_number')
+            ->first();
 
-        
         if ($servingPatient) {
             $formatted = [
-                'number' => $servingPatient->service->prefix . '-' . str_pad($servingPatient->queue_number, 3, '0', STR_PAD_LEFT),
+                'number' => $servingPatient->formattedNumber(),
                 'name' => ucfirst($servingPatient->name),
+                'priority' => $servingPatient->priority,
+            ];
+        } elseif ($waitingCount > 0) {
+            $formatted = [
+                'number' => "Start Queue",
+                'name' => "Patient is waiting...",
+                'priority' => false,
             ];
         } else {
-            if($waitingCount > 0){
-                $formatted = [
-                    'number' => "Start Queue",
-                    'name' => "Patient is waiting...",
-                ];
-            }else{
-                 $formatted = [
-                    'number' => "No Queue",
-                    'name' => "No work",
-                ];
-            }
-           
+            $formatted = [
+                'number' => "No Queue",
+                'name' => "No work",
+                'priority' => false,
+            ];
         }
 
         return response()->json([
@@ -58,19 +61,19 @@ class StaffController extends Controller
 
     public function callNext()
     {
-        $service = Auth::user()->service_id;
+        $service = $this->currentServiceId();
 
-        $waiting = ClientQueues::where('status', 'waiting')
-            ->where('service_id', $service)
+        $waiting = ClientQueues::status('waiting')
+            ->forService($service)
+            ->nextInLine()
+            ->first();
+
+        $next = ClientQueues::status('serving')
+            ->forService($service)
             ->orderBy('queue_number')
             ->first();
 
-        $next = ClientQueues::where('status', 'serving')
-            ->where('service_id', $service)
-            ->orderBy('queue_number')
-            ->first();
-    
-       if (!empty($waiting) || !empty($next)) {
+        if (!empty($waiting) || !empty($next)) {
             if (!empty($waiting)) {
                 event(new QueueNextEvent($waiting));
                 $waiting->update(['status' => 'serving']);
@@ -80,8 +83,8 @@ class StaffController extends Controller
                 event(new QueueNextEvent($next));
                 $next->update(['status' => 'finish']);
             }
-            $active = $waiting ?? $next; 
-            $number = $active->service->prefix . '-' . str_pad($active->queue_number, 3, '0', STR_PAD_LEFT);
+            $active = $waiting ?? $next;
+            $number = $active->formattedNumber();
 
         } else {
             $number = 'None';
@@ -93,23 +96,21 @@ class StaffController extends Controller
 
     public function callPrevious()
     {
-        $serviceId = Auth::user()->service_id;
+        $serviceId = $this->currentServiceId();
 
-        $current = ClientQueues::where('status', 'serving')
-            ->where('service_id', $serviceId)
-            ->first();
+        $current = ClientQueues::status('serving')->forService($serviceId)->first();
 
-        $previous = ClientQueues::where('service_id', $serviceId)
-            ->where('status', 'finish')
+        $previous = ClientQueues::forService($serviceId)
+            ->status('finish')
             ->orderBy('queue_number', 'desc')
             ->first();
-        
+
         if ($previous) {
             event(new QueueNextEvent($previous));
             $current?->update(['status' => 'waiting']);
             $previous?->update(['status' => 'serving']);
 
-            $number = $previous->service->prefix . '-' . str_pad($previous->queue_number, 3, '0', STR_PAD_LEFT);
+            $number = $previous->formattedNumber();
         } else {
             $number = 'None';
         }
@@ -117,34 +118,68 @@ class StaffController extends Controller
         return response()->json(['number' => $number]);
     }
 
-    public function call(){
-         $serviceId = Auth::user()->service_id;
+    /**
+     * Mark the currently-serving ticket a no-show: it was called and the
+     * counter is done waiting on it. Doesn't touch the display or the
+     * voice announcement — a skip is a counter-side bookkeeping action,
+     * not a new call.
+     */
+    public function skip()
+    {
+        $current = ClientQueues::status('serving')->forService($this->currentServiceId())->first();
 
-        $current = ClientQueues::where('status', 'serving')
-            ->where('service_id', $serviceId)
-            ->first();
+        if (!$current) {
+            return response()->json(['success' => false, 'message' => 'No ticket is being served.'], 422);
+        }
+
+        $current->update(['status' => 'skipped']);
+
+        return response()->json(['success' => true, 'number' => $current->formattedNumber()]);
+    }
+
+    public function call(){
+        $current = ClientQueues::status('serving')->forService($this->currentServiceId())->first();
+
+        // Nothing being served yet (e.g. first action of the shift) — there's
+        // no ticket to re-announce. Without this guard the null model blew
+        // up inside the event's broadcastWith() and the client saw an HTML
+        // error page where it expected JSON.
+        if (!$current) {
+            return response()->json(['success' => false, 'message' => 'No ticket is being served.'], 422);
+        }
+
         event(new QueueCallEvent($current));
-        
+
         return response()->json(['success' => true]);
     }
 
     public function selectedCall($id){
-        $serviceId = Auth::user()->service_id;
+        $serviceId = $this->currentServiceId();
 
-        $current = ClientQueues::where('status', 'serving')
-        ->where('service_id', $serviceId)
-        ->first();
+        $next = ClientQueues::where('id', $id)->forService($serviceId)->first();
 
-        $current->update(['status' => 'waiting']);
+        if (!$next) {
+            return response()->json(['success' => false, 'message' => 'Ticket not found.'], 404);
+        }
 
-        $next = ClientQueues::where('id', $id)
-            ->where('service_id', operator: $serviceId)
-            ->first();
+        // Same fix as above: there may be no one currently serving to bump
+        // back to waiting, and that's fine — it just means the counter was
+        // idle before this call.
+        $current = ClientQueues::status('serving')->forService($serviceId)->first();
+        $current?->update(['status' => 'waiting']);
 
         $next->update(['status' => 'serving']);
         event(new QueueCallEvent($next));
-        
+
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * The service the currently authenticated staff member belongs to.
+     */
+    private function currentServiceId()
+    {
+        return Auth::user()->service_id;
     }
 
 }

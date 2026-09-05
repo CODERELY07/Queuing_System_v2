@@ -7,11 +7,15 @@ use App\Http\Controllers\DisplayAllQueueController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\UserController;
+use App\Models\Service;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('home');
+    // Real, admin-configured services rather than a hardcoded list, so the
+    // homepage never drifts out of sync with what the kiosk actually offers.
+    $services = Service::where('name', '!=', 'Admin')->get();
+    return view('home', compact('services'));
 })->name('home');
 
 // Dashboard
@@ -37,6 +41,14 @@ Route::middleware('auth')->group(function () {
 Route::prefix('display')->group(function () {
     Route::get('/', [DisplayAllQueueController::class, 'index'])->name('display');
     Route::get('/serving-patients', [DisplayAllQueueController::class, 'servingPatients']);
+
+    // One big, dedicated screen per department (e.g. /display/2 for
+    // Doctor Consultation) — for mounting at that department's own
+    // waiting area, rather than everyone sharing the all-services board.
+    // Must stay after the literal /serving-patients route above, or this
+    // wildcard would swallow it first.
+    Route::get('/{service:slug}', [DisplayAllQueueController::class, 'show'])->name('display.show');
+    Route::get('/{service:slug}/serving-patient', [DisplayAllQueueController::class, 'servingPatient'])->name('display.show.data');
 });
 
 // Staff Routes
@@ -49,6 +61,7 @@ Route::prefix('staff')->group(function () {
     Route::post('/call-previous', [StaffController::class, 'callPrevious']);
     Route::post('/call', [StaffController::class, 'call']);
     Route::post('/call/{id}', [StaffController::class, 'selectedCall']);
+    Route::post('/skip', [StaffController::class, 'skip'])->name('staff.skip');
     Route::get('/dashboard-data', [StaffController::class, 'data']);
 });
 
