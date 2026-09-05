@@ -4,14 +4,10 @@ document.addEventListener('DOMContentLoaded', function () {
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
 
-               const method = form.querySelector('input[name="_method"]')?.value || 'POST';
-
-                if (method.toUpperCase() === 'DELETE') {
-                    const confirmed = confirm('Are you sure you want to delete this item?');
-                    if (!confirmed) {
-                        return;
-                    }
-                }
+                // Confirmation already happened in the modal this form lives
+                // in — the Delete button there IS the confirmation, so by
+                // the time this fires the user has already agreed.
+                const method = form.querySelector('input[name="_method"]')?.value || 'POST';
 
                 const actionUrl = form.dataset.action;
                 const formData = new FormData(form);

@@ -1,20 +1,22 @@
 @if (session('error'))
-    <div 
-        x-data="{ show: true }" 
-        x-show="show" 
-        x-init="setTimeout(() => show = false, 5000)" 
-        class="mb-4 px-4 py-2 rounded bg-red-100 text-red-800 dark:bg-red-200 dark:text-red-900"
+    <div
+        x-data="{ show: true }"
+        x-show="show"
+        x-transition
+        x-init="setTimeout(() => show = false, 5000)"
+        class="mb-4 px-4 py-3 rounded-lg bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300 border border-red-200 dark:border-red-800"
     >
         {{ session('error') }}
     </div>
 @endif
 
 @if (session('success'))
-    <div 
-        x-data="{ show: true }" 
-        x-show="show" 
-        x-init="setTimeout(() => show = false, 5000)" 
-        class="mb-4 px-4 py-2 rounded bg-green-100 text-green-800 dark:bg-green-200 dark:text-green-900"
+    <div
+        x-data="{ show: true }"
+        x-show="show"
+        x-transition
+        x-init="setTimeout(() => show = false, 5000)"
+        class="mb-4 px-4 py-3 rounded-lg bg-green-50 text-green-700 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800"
     >
         {{ session('success') }}
     </div>

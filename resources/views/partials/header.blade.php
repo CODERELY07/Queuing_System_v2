@@ -1,49 +1,55 @@
-<header class="bg-white shadow-md fixed z-10 top-0 left-0 w-full">
-  <div class="container mx-auto px-4">
-    <div class="flex justify-between items-center py-4">
+<header x-data="{ open: false }" class="bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-100 dark:border-gray-800 sticky top-0 z-30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex justify-between items-center h-16">
       <!-- Logo/Brand -->
-      <a class="flex items-center space-x-2" href={{ route('home') }}>
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-        </svg>
-        
-        <span class="text-xl font-bold text-blue-600">MedQueue</span>
+      <a class="flex items-center gap-2 shrink-0" href="{{ route('home') }}">
+        <x-application-logo class="h-7 w-7 text-brand-600 dark:text-brand-400" />
+        <span class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">MedQueue</span>
       </a>
+
       <!-- Main Navigation -->
       <nav class="hidden md:block">
-        <ul class="flex space-x-8">
-          <li><a href="{{ route('kiosk') }}" class="text-gray-700 hover:text-blue-600 font-medium">Kiosk</a></li>
-          <li><a href="{{ route('display') }}" class="text-gray-700 hover:text-blue-600 font-medium">Queue Display</a></li>
-          <li><a href="{{ route('admin') }}" class="text-gray-700 hover:text-blue-600 font-medium">Login</a></li>
+        <ul class="flex items-center gap-1">
+          @php $navItem = 'px-3 py-2 rounded-md text-sm font-medium transition'; @endphp
+          <li>
+              <a href="{{ route('kiosk') }}"
+                 class="{{ $navItem }} {{ request()->routeIs('kiosk') ? 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/40' : 'text-gray-600 dark:text-gray-300 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                  Kiosk
+              </a>
+          </li>
+          <li>
+              <a href="{{ route('display') }}"
+                 class="{{ $navItem }} {{ request()->routeIs('display') ? 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/40' : 'text-gray-600 dark:text-gray-300 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
+                  Queue Display
+              </a>
+          </li>
+          <li>
+              <a href="{{ route('login') }}" class="{{ $navItem }} text-gray-600 dark:text-gray-300 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-gray-50 dark:hover:bg-gray-800">
+                  Staff Login
+              </a>
+          </li>
         </ul>
       </nav>
 
       <!-- Mobile Menu Button -->
       <div class="md:hidden">
-        <button id="mobile-menu-button" class="text-gray-700 hover:text-blue-600">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        <button @click="open = ! open" aria-label="Toggle navigation" :aria-expanded="open"
+                class="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
+          <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
+            <path x-show="!open" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            <path x-show="open" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
     </div>
 
-    <!-- Mobile Menu (Hidden by default) -->
-    <div id="mobile-menu" class="hidden md:hidden pb-4">
-      <ul class="space-y-2">
-        <li><a href="{{ route('kiosk') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Kiosk</a></li>
-        <li><a href="{{ route('display') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Queue Display</a></li>
-        <li><a href="{{ route('admin') }}" class="block px-2 py-1 text-gray-700 hover:bg-blue-50 rounded">Login</a></li>
-     
+    <!-- Mobile Menu -->
+    <div x-show="open" x-transition.origin.top x-cloak class="md:hidden pb-4">
+      <ul class="space-y-1">
+        <li><a href="{{ route('kiosk') }}" class="block px-3 py-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/40 hover:text-brand-700 dark:hover:text-brand-300">Kiosk</a></li>
+        <li><a href="{{ route('display') }}" class="block px-3 py-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/40 hover:text-brand-700 dark:hover:text-brand-300">Queue Display</a></li>
+        <li><a href="{{ route('login') }}" class="block px-3 py-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/40 hover:text-brand-700 dark:hover:text-brand-300">Staff Login</a></li>
       </ul>
     </div>
   </div>
-
-  <script>
-    // Mobile menu toggle
-    document.getElementById('mobile-menu-button').addEventListener('click', function() {
-      const menu = document.getElementById('mobile-menu');
-      menu.classList.toggle('hidden');
-    });
-  </script>
 </header>

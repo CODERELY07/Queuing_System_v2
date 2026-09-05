@@ -1,7 +1,14 @@
 document.addEventListener("DOMContentLoaded", function () {
-if(window.location.pathname === "/kiosk"){
-    document.getElementById('print').addEventListener('click', function () {
-    
+    // The registration form and the ticket confirmation are both served
+    // from "/kiosk" (the POST back to the same URL renders the ticket
+    // view directly, no redirect) — so the pathname alone can't tell them
+    // apart. Only the ticket page actually has a #print button.
+    const printButton = document.getElementById('print');
+    if (!printButton) {
+        return;
+    }
+
+    printButton.addEventListener('click', function () {
         const printContents = document.getElementById('print-body').innerHTML;
         const printWindow = window.open('', '', 'width=800,height=600');
         printWindow.document.writeln(`
@@ -22,56 +29,5 @@ if(window.location.pathname === "/kiosk"){
             </html>
         `);
         printWindow.document.close();
-      
-    
     });
-  }
 });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

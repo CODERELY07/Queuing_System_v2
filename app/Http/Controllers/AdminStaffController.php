@@ -14,35 +14,40 @@ use Illuminate\Support\Facades\Hash;
 class AdminStaffController extends Controller
 {
         public function index(){
-            $staffs = User::where('user_type', 'staff')->with('service')->latest()->get();
+            $staffs = User::where('user_type', 'staff')
+                ->with('service')
+                ->when(request('q'), fn ($q) => $q->where(function ($q) {
+                    $term = '%' . request('q') . '%';
+                    $q->where('name', 'like', $term)->orWhere('email', 'like', $term);
+                }))
+                ->when(
+                    in_array(request('sort'), ['name', 'email']),
+                    fn ($q) => $q->orderBy(request('sort'), request('dir') === 'desc' ? 'desc' : 'asc'),
+                    fn ($q) => $q->latest(),
+                )
+                ->get();
             $services = Service::with('users')->get();
             return view('admin.staff', compact('staffs', 'services'));
         }
 
     public function store(Request $request){
         try {
-                $staff = $this->validateStaff($request);
-                $staff['password'] = Hash::make($staff['password']);
-                $staff['user_type'] = 'staff';
+            $staff = $this->validateStaff($request);
+            $staff['password'] = Hash::make($staff['password']);
+            $staff['user_type'] = 'staff';
 
-                $create = User::create($staff);
+            User::create($staff);
 
-                if ($create) {
-                    return response()->json(['status' => 'success','message' => 'Staff Added Successfully!']);
-                } else {
-                    return response()->json(['status' => 'error', 'message' => 'Insert Failed!']);
-                }
-            } catch (QueryException $e) {
-                   return response()->json(['status' => 'error', 'message' =>  $e->getMessage()]);
-            } catch (\Exception $e) {
-                  return response()->json(['status' => 'error', 'message' =>  $e->getMessage()]);
-            }
+            return $this->jsonSuccess('Staff Added Successfully!');
+        } catch (\Throwable $e) {
+            return $this->jsonError($e->getMessage());
+        }
     }
+
     public function update(Request $request, $id)
     {
-        // return response()->json(['status' => 'success', 'message' => 'response']);
         try {
-            $validated = $this->validateStaffUpdate($request, $id);
+            $validated = $this->validateStaff($request, $id);
 
             if (!empty($validated['password'])) {
                 $validated['password'] = Hash::make($validated['password']);
@@ -52,15 +57,13 @@ class AdminStaffController extends Controller
 
             $updated = User::where('id', $id)->update($validated);
 
-            if ($updated) {
-                return response()->json(['status' => 'success', 'message' => 'Staff updated successfully.']);
-            } else {
-                return response()->json(['status' => 'error', 'message' => 'No changes were made.']);
-            }
+            return $updated
+                ? $this->jsonSuccess('Staff updated successfully.')
+                : $this->jsonError('No changes were made.');
         } catch (QueryException $e) {
-            return response()->json(['status' => 'error', 'message' => 'Database error: ' . $e->getMessage()]);
+            return $this->jsonError('Database error: ' . $e->getMessage());
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => 'Unexpected error: ' . $e->getMessage()]);
+            return $this->jsonError('Unexpected error: ' . $e->getMessage());
         }
     }
 
@@ -68,31 +71,26 @@ class AdminStaffController extends Controller
     {
         try {
             $deleted = User::destroy($id);
-            if ($deleted) {
-                return response()->json(['status' => 'success', 'message' => 'Staff deleted successfully.']);
-            } else {
-                return response()->json(['status' => 'error', 'message' => 'Delete failed.']);
-            }
+
+            return $deleted
+                ? $this->jsonSuccess('Staff deleted successfully.')
+                : $this->jsonError('Delete failed.');
         } catch (\Exception $e) {
-            return response()->json(['status' => 'error', 'message' => $e->getMessage()]);
+            return $this->jsonError($e->getMessage());
         }
     }
 
-    private function validateStaff($request) {
+    /**
+     * Validation rules shared by create and update. Pass $id to make the
+     * uniqueness checks ignore that record and make the password optional.
+     */
+    private function validateStaff(Request $request, $id = null): array
+    {
         return $request->validate([
-            'name' => 'string|required|max:50|unique:users,name',
-            'email' => 'email|required|unique:users,email',
-            'service_id' => 'required|exists:services,id|integer',
-            'password' => 'required|string|confirmed',
-        ]);
-    }
-
-    private function validateStaffUpdate($request, $id) {
-        return $request->validate([
-            'name' => 'string|required|max:50|unique:users,name,' . $id,
-            'email' => 'email|required|unique:users,email,' . $id,
-            'service_id' => 'required|exists:services,id|integer',
-            'password' => 'nullable|string|confirmed',
+            'name' => 'required|string|max:50|unique:users,name' . ($id ? ",{$id}" : ''),
+            'email' => 'required|email|unique:users,email' . ($id ? ",{$id}" : ''),
+            'service_id' => 'required|integer|exists:services,id',
+            'password' => $id ? 'nullable|string|confirmed' : 'required|string|confirmed',
         ]);
     }
 
