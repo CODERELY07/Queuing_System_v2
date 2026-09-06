@@ -8,6 +8,11 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
     }
 
+    // Reuses the "Back to Kiosk" link's own href — rendered server-side via
+    // route('kiosk') — as the single source of truth for where "back"
+    // means, rather than hardcoding the path again here.
+    const kioskUrl = document.getElementById('back-to-kiosk')?.href || '/kiosk';
+
     printButton.addEventListener('click', function () {
         const printContents = document.getElementById('print-body').innerHTML;
         const printWindow = window.open('', '', 'width=800,height=600');
@@ -29,5 +34,33 @@ document.addEventListener("DOMContentLoaded", function () {
             </html>
         `);
         printWindow.document.close();
+
+        // The print popup above is independent of this page and keeps
+        // printing (then closes itself) even after this one navigates away
+        // — the short delay just gives the print dialog a moment to
+        // actually appear before the kiosk resets for the next visitor.
+        setTimeout(function () {
+            window.location.href = kioskUrl;
+        }, 1500);
     });
+
+    // Kiosk self-reset: nobody's meant to linger on the ticket screen —
+    // whether they printed or just walked off without touching anything,
+    // the machine needs to be ready for the next visitor within a bounded
+    // time either way.
+    let secondsLeft = 15;
+    const secondsEl = document.getElementById('auto-redirect-seconds');
+
+    const countdown = setInterval(function () {
+        secondsLeft -= 1;
+
+        if (secondsEl) {
+            secondsEl.textContent = secondsLeft;
+        }
+
+        if (secondsLeft <= 0) {
+            clearInterval(countdown);
+            window.location.href = kioskUrl;
+        }
+    }, 1000);
 });
