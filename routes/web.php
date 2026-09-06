@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AdminQueueController;
+use App\Http\Controllers\AdminServiceController;
 use App\Http\Controllers\AdminStaffController;
 use App\Http\Controllers\ClientQueueController;
 use App\Http\Controllers\DisplayAllQueueController;
@@ -14,7 +15,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     // Real, admin-configured services rather than a hardcoded list, so the
     // homepage never drifts out of sync with what the kiosk actually offers.
-    $services = Service::where('name', '!=', 'Admin')->get();
+    $services = Service::publicFacing()->get();
     return view('home', compact('services'));
 })->name('home');
 
@@ -52,11 +53,13 @@ Route::prefix('display')->group(function () {
 });
 
 // Staff Routes
-Route::prefix('staff')->group(function () {
-    // Route::get('/', function () {
-    //     return view('staff.dashboard');
-    // })->name('staff.dashboard');
-    
+//
+// These actually move a live queue (call/skip/recall) and used to be
+// reachable with no login at all. `auth` closes that; `user_type:staff`
+// stops a logged-in *admin* from hitting them too (both roles carry a
+// service_id — admin's is the internal "Admin" bucket — so nothing else
+// would have stopped that).
+Route::prefix('staff')->middleware(['auth', 'verified', 'user_type:staff'])->group(function () {
     Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
     Route::post('/call-previous', [StaffController::class, 'callPrevious']);
     Route::post('/call', [StaffController::class, 'call']);
@@ -67,23 +70,41 @@ Route::prefix('staff')->group(function () {
 
 
 // Admin Routes
-Route::prefix('admin')->middleware(['auth', 'verified'])->group(function () {
+//
+// `auth` alone only proved *someone* was logged in — nothing checked that
+// they were actually an admin, so a staff account could reach every one of
+// these by just knowing the URL. `user_type:admin` closes that.
+Route::prefix('admin')->middleware(['auth', 'verified', 'user_type:admin'])->group(function () {
     Route::get('/', function () {
         return view('admin.index');
     })->name('admin');
 
-    Route::resource('queues', AdminQueueController::class)->names([
+    // Only index/destroy are implemented on the controller — leaving this
+    // as a full resource() registered create/show/edit/update routes to
+    // nothing and every one of them 500'd with "method does not exist"
+    // if actually hit.
+    Route::resource('queues', AdminQueueController::class)->only(['index', 'destroy'])->names([
         'index' => 'admin.queues',
     ]);
 
     Route::delete('/delete-old', [AdminQueueController::class, 'deleteOld'])->name('queues.deleteOld');
-    
+    Route::get('/queues-archive', [AdminQueueController::class, 'archived'])->name('queues.archived');
+    Route::post('/queues/{id}/restore', [AdminQueueController::class, 'restore'])->name('queues.restore');
+    Route::delete('/queues/{id}/purge', [AdminQueueController::class, 'purge'])->name('queues.purge');
+
      // CRUD
     Route::controller(App\Http\Controllers\AdminStaffController::class)->group(function () {
         Route::get('/staff', 'index')->name('admin.staff');
         Route::post('/store', 'store')->name('staff.store');
         Route::put('/staff/update/{id}', 'update')->name('staff.update');
-        Route::delete('/staff/destroy/{id}', 'destroy')->name('staff.destroy'); 
+        Route::delete('/staff/destroy/{id}', 'destroy')->name('staff.destroy');
+    });
+
+    Route::controller(AdminServiceController::class)->group(function () {
+        Route::get('/services', 'index')->name('admin.services');
+        Route::post('/services', 'store')->name('services.store');
+        Route::put('/services/{id}', 'update')->name('services.update');
+        Route::delete('/services/{id}', 'destroy')->name('services.destroy');
     });
 });
 
