@@ -15,7 +15,17 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased">
-        <div x-data="{ sidebarOpen: false }" class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
+        <div
+            x-data="{
+                sidebarOpen: false,
+                sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === '1',
+                toggleSidebar() {
+                    this.sidebarCollapsed = !this.sidebarCollapsed;
+                    localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed ? '1' : '0');
+                },
+            }"
+            class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900"
+        >
             <div x-show="sidebarOpen" x-cloak x-transition.opacity
                  @click="sidebarOpen = false"
                  class="fixed inset-0 z-30 bg-black/50 sm:hidden"></div>

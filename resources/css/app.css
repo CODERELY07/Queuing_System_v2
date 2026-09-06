@@ -40,7 +40,7 @@
        sidesteps that entirely. */
     .sidebar-drawer {
         transform: translateX(-100%);
-        transition: transform 200ms ease-out;
+        transition: transform 200ms ease-out, width 300ms ease-in-out;
     }
 
     .sidebar-drawer.sidebar-open {
@@ -50,6 +50,45 @@
     @media (min-width: 640px) {
         .sidebar-drawer {
             transform: none;
+        }
+    }
+
+    /* The desktop collapse/expand width (bound via Alpine's x-bind:style in
+       sidebar-nav.blade.php) only makes sense for the persistent desktop
+       rail. On the mobile off-canvas drawer it's always full width — an
+       inline style always outranks a plain class rule, so this needs
+       !important to actually override it below `sm`. */
+    @media (max-width: 639px) {
+        .sidebar-drawer {
+            width: 18rem !important;
+        }
+    }
+
+    /* Every nav row's label — a plain class the .is-collapsed rule below
+       toggles, rather than repeating an Alpine `:class="sidebarCollapsed
+       ? ... : ..."` binding on every single label. That per-element
+       approach was the actual mobile bug: it hid labels purely off the
+       desktop-collapsed flag with no notion of viewport, so a rail
+       collapsed once on desktop (the choice is remembered in
+       localStorage) opened as icons with no text on a phone too, even
+       though the width override below already restored the drawer's
+       width. Centralizing it here means the one mobile override fixes
+       both at once, the same way it already does for width. */
+    .nav-label {
+        width: auto;
+        opacity: 1;
+        transition: opacity 150ms ease, width 200ms ease;
+    }
+
+    .sidebar-drawer.is-collapsed .nav-label {
+        width: 0;
+        opacity: 0;
+    }
+
+    @media (max-width: 639px) {
+        .sidebar-drawer.is-collapsed .nav-label {
+            width: auto;
+            opacity: 1;
         }
     }
 }
