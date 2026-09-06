@@ -23,6 +23,7 @@ class User extends Authenticatable
         'user_type',
         'service_id',
         'password',
+        'last_seen',
     ];
 
     /**
