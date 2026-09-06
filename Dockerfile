@@ -14,7 +14,14 @@ RUN apk add --no-cache \
     npm
 
 # Install PHP extensions required for Laravel and PostgreSQL
-RUN docker-php-ext-install pdo pdo_pgsql zip bcmath gd
+#
+# pcntl is the one that actually matters for Reverb specifically: its
+# server command calls pcntl_signal(SIGINT, ...) for graceful shutdown,
+# and without this extension SIGINT isn't defined at all — PHP throws
+# "Undefined constant ...SIGINT" the instant reverb:start runs, which
+# supervisord then just respawns forever (see supervisord.conf), burning
+# CPU on a process that can never actually come up.
+RUN docker-php-ext-install pdo pdo_pgsql zip bcmath gd pcntl
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
