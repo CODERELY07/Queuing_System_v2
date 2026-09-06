@@ -24,6 +24,9 @@
                     <x-cta-button :href="route('admin.queues')" variant="outline">
                         Manage Queues
                     </x-cta-button>
+                    <x-cta-button :href="route('admin.services')" variant="outline">
+                        Manage Services
+                    </x-cta-button>
                 </div>
             </div>
         </div>
