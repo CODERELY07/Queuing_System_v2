@@ -14,7 +14,7 @@ class UserSeeder extends Seeder
         $adminService = Service::where('name', 'Admin')->first();
 
         User::updateOrCreate(
-            ['email' => 'admin@gmail.com'],
+            ['email' => 'admin@medqueue.test'],
             [
                 'name' => 'admin',
                 'user_type' => 'admin',

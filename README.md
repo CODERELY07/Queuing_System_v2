@@ -79,7 +79,7 @@ php artisan key:generate
 php artisan migrate --seed
 ```
 
-This seeds four real departments (Registration, Doctor Consultation, Pharmacy, Emergency) plus one internal "Admin" service that only exists to satisfy admin accounts' `service_id`, an admin login (`admin@gmail.com` / `admin12345`), and one staff login per department (e.g. `registration@medqueue.test` / `staff12345`). See [database.md](docs/database.md#seed-data) for the full list.
+This seeds four real departments (Registration, Doctor Consultation, Pharmacy, Emergency) plus one internal "Admin" service that only exists to satisfy admin accounts' `service_id`, an admin login (`admin@medqueue.test` / `admin12345`), and one staff login per department (e.g. `registration@medqueue.test` / `staff12345`). See [database.md](docs/database.md#seed-data) for the full list.
 
 ### 7. Start the app
 
