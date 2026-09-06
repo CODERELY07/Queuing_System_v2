@@ -16,7 +16,13 @@
     </div>
 
     <x-panel class="overflow-hidden">
-        <div class="flex justify-end p-4 border-b border-gray-100 dark:border-gray-700">
+        <div class="flex justify-end items-center gap-3 p-4 border-b border-gray-100 dark:border-gray-700">
+            <a href="{{ route('queues.archived') }}" class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition">
+                View Archived
+                @if ($archivedCount > 0)
+                    <span class="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-gray-100 dark:bg-gray-700 text-xs font-semibold text-gray-600 dark:text-gray-300">{{ $archivedCount }}</span>
+                @endif
+            </a>
             <x-row-action-button variant="danger" x-data="" x-on:click.prevent="$dispatch('open-modal', 'delete-old-queues')">
                 <x-icon.trash class="h-4 w-4" />
                 Delete Old Queues
@@ -64,7 +70,7 @@
                                     :name="'delete-queue-' . $queue->id"
                                     :action="route('queues.destroy', $queue->id)"
                                     title="Delete this ticket?"
-                                    :body="'Ticket ' . $queue->formattedNumber() . ' for ' . $queue->name . ' will be removed permanently.'" />
+                                    :body="'Ticket ' . $queue->formattedNumber() . ' for ' . $queue->name . ' will be moved to the archive — you can restore it from there.'" />
                             </td>
                         </tr>
                     @empty
@@ -87,5 +93,5 @@
         name="delete-old-queues"
         :action="route('queues.deleteOld')"
         title="Delete old queues?"
-        body="Every ticket from before today will be removed permanently. Today's queues are not affected." />
+        body="Every ticket from before today will be cleared from this list. Today's queues are not affected, and the records are kept for analytics and reporting." />
 </x-app-layout>

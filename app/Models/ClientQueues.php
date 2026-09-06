@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientQueues extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = ['name', 'service_id', 'queue_number', 'status', 'priority'];
 
     protected $casts = [
@@ -75,6 +78,7 @@ class ClientQueues extends Model
             'name' => $query->orderBy('name', $direction),
             'status' => $query->orderBy('status', $direction),
             'created_at' => $query->orderBy('created_at', $direction),
+            'deleted_at' => $query->orderBy('deleted_at', $direction),
             default => $query->orderBy('queue_number', $direction),
         };
     }
