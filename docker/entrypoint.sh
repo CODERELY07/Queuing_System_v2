@@ -8,5 +8,5 @@ php artisan view:cache
 # Run migrations automatically on startup
 php artisan migrate --force
 
-# Start Supervisor (Nginx + PHP-FPM)
+# Start Supervisor (Nginx + PHP-FPM + Reverb)
 /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
