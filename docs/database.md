@@ -106,7 +106,7 @@ This exists so the dashboard's historical numbers (7-day trend, busiest departme
 
 | Login | Password | Role | Department |
 |---|---|---|---|
-| `admin@gmail.com` | `admin12345` | admin | Admin (internal) |
+| `admin@medqueue.test` | `admin12345` | admin | Admin (internal) |
 | `registration@medqueue.test` | `staff12345` | staff | Registration |
 | `doctor@medqueue.test` | `staff12345` | staff | Doctor Consultation |
 | `pharmacy@medqueue.test` | `staff12345` | staff | Pharmacy |
