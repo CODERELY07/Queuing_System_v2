@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Concerns\BroadcastsSafely;
 use App\Events\QueueUpdatedEvent;
 use App\Models\ClientQueues;
 use App\Models\Service;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
  */
 class ClientQueueService
 {
+    use BroadcastsSafely;
+
     public function createTicket(array $data): ClientQueues
     {
         $queue = null;
@@ -52,8 +55,10 @@ class ClientQueueService
         $queue->setRelation('service', Service::find($data['service_id']));
 
         // Lets that department's staff dashboard pick up the new ticket
-        // live — see queuing.js's `.queue.updated` listener.
-        event(new QueueUpdatedEvent($queue));
+        // live — see queuing.js's `.queue.updated` listener. Wrapped: a
+        // visitor getting a ticket must never fail just because the
+        // real-time layer isn't reachable (see BroadcastsSafely).
+        $this->broadcastSafely(fn () => event(new QueueUpdatedEvent($queue)));
 
         return $queue;
     }
