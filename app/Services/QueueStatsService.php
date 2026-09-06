@@ -39,12 +39,21 @@ class QueueStatsService
      * Average minutes from ticket creation to being marked finished, for
      * tickets finished today — a proxy for turnaround since there's no
      * separate "serving started" timestamp on the queue row.
+     *
+     * The minute-difference expression isn't portable SQL — MySQL has
+     * TIMESTAMPDIFF(), Postgres doesn't — so it's picked per driver rather
+     * than assuming MySQL.
      */
     public function avgTurnaroundMinutesToday(): ?float
     {
+        $diffInMinutes = match (DB::connection()->getDriverName()) {
+            'pgsql' => 'EXTRACT(EPOCH FROM (updated_at - created_at)) / 60',
+            default => 'TIMESTAMPDIFF(MINUTE, created_at, updated_at)',
+        };
+
         return ClientQueues::whereDate('created_at', now())
             ->where('status', 'finish')
-            ->avg(DB::raw('TIMESTAMPDIFF(MINUTE, created_at, updated_at)'));
+            ->avg(DB::raw($diffInMinutes));
     }
 
     /**
