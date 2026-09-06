@@ -27,9 +27,20 @@ class UserFactory extends Factory
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'user_type' => fake()->randomElement(['admin', 'staff', 'client']),
+            // 'client' isn't a valid user_type — the column only allows
+            // admin/staff (there's no self-registered account type in this
+            // app; see routes/auth.php).
+            'user_type' => fake()->randomElement(['admin', 'staff']),
             'email_verified_at' => now(),
-            'service_id' => Service::inRandomOrder()->first()->id,
+            // service_id is required (not nullable), so a service must
+            // exist first — created on demand rather than assuming a
+            // seeded row is already there, which a fresh test database
+            // (migrated but not seeded) won't have. Service has no
+            // HasFactory of its own, so this creates one directly.
+            'service_id' => (Service::inRandomOrder()->first() ?? Service::create([
+                'name' => 'Test Service ' . Str::random(8),
+                'prefix' => 'T',
+            ]))->id,
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
