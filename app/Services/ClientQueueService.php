@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Events\QueueUpdatedEvent;
 use App\Models\ClientQueues;
 use App\Models\Service;
 use Illuminate\Support\Facades\DB;
@@ -25,10 +26,20 @@ class ClientQueueService
             // registration for that service after an admin archives one
             // would recompute the same number and crash on the unique
             // constraint — tickets are never renumbered, only ever issued.
+            //
+            // orderByDesc()->value(), not max(): MySQL allows `SELECT
+            // MAX(...) ... FOR UPDATE`, locking every row it scans to
+            // compute the aggregate, but Postgres rejects FOR UPDATE
+            // combined with an aggregate function outright ("Feature not
+            // supported"). Selecting and locking the single highest row
+            // directly works the same way on both — the next concurrent
+            // request for this service blocks on that same row until this
+            // transaction commits, then sees the number it just issued.
             $last = ClientQueues::withTrashed()
                 ->where('service_id', $data['service_id'])
                 ->lockForUpdate()
-                ->max('queue_number');
+                ->orderByDesc('queue_number')
+                ->value('queue_number');
 
             $queue = ClientQueues::create([
                 'name' => $data['name'],
@@ -39,6 +50,10 @@ class ClientQueueService
         });
 
         $queue->setRelation('service', Service::find($data['service_id']));
+
+        // Lets that department's staff dashboard pick up the new ticket
+        // live — see queuing.js's `.queue.updated` listener.
+        event(new QueueUpdatedEvent($queue));
 
         return $queue;
     }

@@ -1,17 +1,50 @@
 document.addEventListener("DOMContentLoaded", function () {
-        // Each row's "Call" button fetches directly on click — it used to
-        // call the generic `call()` helper below (which attaches a fetch
-        // listener) and then immediately re-click itself to fire it. Since
-        // `disabled` wasn't set until after that synthetic click, the
-        // re-entrant click ran the same handler again — attaching another
-        // listener and clicking again — recursing until the call stack
-        // overflowed. Same POST every time, so it just fetches inline.
+
+    // Guards every counter action (Next Patient / Previous / Recall /
+    // No-show / a row's own "Call") behind one shared lock, not just each
+    // button's own. Without this, clicking "Next Patient" twice before the
+    // first request resolves — or clicking "No-show" while "Next Patient"
+    // is still in flight — could fire overlapping requests against the
+    // same ticket, which is exactly how a patient ends up silently skipped
+    // or the counter ends up in a state nobody actually clicked for.
+    let staffActionsBusy = false;
+
+    function setStaffActionsBusy(busy) {
+        staffActionsBusy = busy;
+
+        ['call-next-btn', 'call-prev-btn', 'call', 'skip-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.disabled = busy;
+            btn.classList.toggle('opacity-50', busy);
+            btn.classList.toggle('cursor-not-allowed', busy);
+        });
+
+        document.querySelectorAll('.selected-call').forEach(btn => {
+            btn.disabled = busy;
+            btn.classList.toggle('opacity-50', busy);
+            btn.classList.toggle('cursor-not-allowed', busy);
+        });
+    }
+
+    // Each row's "Call" button fetches directly on click — it used to
+    // call the generic `call()` helper below (which attaches a fetch
+    // listener) and then immediately re-click itself to fire it. Since
+    // `disabled` wasn't set until after that synthetic click, the
+    // re-entrant click ran the same handler again — attaching another
+    // listener and clicking again — recursing until the call stack
+    // overflowed. Same POST every time, so it just fetches inline.
+    //
+    // Pulled into its own function so a live table refresh (see
+    // refreshQueueTable() below) can re-bind it against the replacement
+    // buttons — they're brand new DOM nodes with no listeners of their own.
+    function bindSelectedCallButtons() {
         document.querySelectorAll('.selected-call').forEach(button => {
             button.addEventListener('click', function () {
-                if (this.disabled) return;
+                if (this.disabled || staffActionsBusy) return;
 
                 const queueId = this.getAttribute('data-id');
-                this.disabled = true;
+                setStaffActionsBusy(true);
 
                 fetch(`/staff/call/${queueId}`, {
                     method: 'POST',
@@ -26,7 +59,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (data.success === false) {
                         alert(data.message || 'Could not call this ticket.');
-                        this.disabled = false;
+                        setStaffActionsBusy(false);
                         return;
                     }
 
@@ -34,10 +67,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 })
                 .catch(err => {
                     console.error('Error:', err);
-                    this.disabled = false;
+                    setStaffActionsBusy(false);
                 });
             });
         });
+    }
+
+    bindSelectedCallButtons();
 
 
      function call(id) {
@@ -63,6 +99,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
         button.addEventListener('click', function () {
+            if (staffActionsBusy) return;
+            setStaffActionsBusy(true);
+
             fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -84,7 +123,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 loadDashboardData();
             })
-            .catch(err => console.error('Error:', err));
+            .catch(err => console.error('Error:', err))
+            .finally(() => setStaffActionsBusy(false));
         });
     }
     displayQeueue();
@@ -178,7 +218,51 @@ document.addEventListener("DOMContentLoaded", function () {
         displaySingleQueue();
     });
 
- 
+    // A new ticket was just issued at the kiosk. Only that ticket's own
+    // department needs to react — refreshes the staff dashboard's "Up
+    // Next" panel and queue table live, so a new ticket doesn't just sit
+    // invisible until staff happen to take an action of their own (which
+    // triggers its own refresh anyway) or reload the page.
+    window.Echo.channel('queue').listen('.queue.updated', (ticket) => {
+        if (window.location.pathname !== '/dashboard/staff') return;
+
+        const meta = document.getElementById('staff-dashboard-meta');
+        if (!meta || String(meta.dataset.serviceId) !== String(ticket.service_id)) return;
+
+        loadDashboardData();
+        refreshQueueTable();
+    });
+
+    // Re-fetches this same page and swaps in just the queue table panel —
+    // preserves whatever page/sort/search is currently in the URL instead
+    // of a full navigation, which would lose scroll position (and any text
+    // still being typed into the search box) just to pick up one new row.
+    function refreshQueueTable() {
+        const panel = document.getElementById('queue-table-panel');
+        if (!panel) return;
+
+        panel.classList.add('opacity-50');
+
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const fresh = new DOMParser()
+                    .parseFromString(html, 'text/html')
+                    .getElementById('queue-table-panel');
+
+                if (!fresh) {
+                    panel.classList.remove('opacity-50');
+                    return;
+                }
+
+                panel.replaceWith(fresh);
+                bindSelectedCallButtons();
+            })
+            .catch(error => {
+                console.error('Error refreshing queue table:', error);
+                panel.classList.remove('opacity-50');
+            });
+    }
 
 
      function displayQeueue(){
@@ -187,9 +271,9 @@ document.addEventListener("DOMContentLoaded", function () {
              fetch('/display/serving-patients')
             .then(response => response.json())
             .then(data => {
-            
+
                 const container = document.getElementById('serving-list');
-                container.innerHTML = ''; 
+                container.innerHTML = '';
 
                 data.forEach(service => {
                     const servingInfo = service.serving
@@ -260,9 +344,22 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(data => {
 
                 document.getElementById('waiting-count').textContent = data.waiting;
-                document.getElementById('serving-patient-name').textContent = data.servingPatient.name;
-                document.getElementById('serving-patient-number').textContent = data.servingPatient.number;
+
+                const numberEl = document.getElementById('serving-patient-number');
+                const nameEl = document.getElementById('serving-patient-name');
+                const skeletonEl = document.getElementById('serving-patient-skeleton');
+
+                nameEl.textContent = data.servingPatient.name;
+                numberEl.textContent = data.servingPatient.number;
                 document.getElementById('serving-patient-priority').classList.toggle('hidden', !data.servingPatient.priority);
+
+                // The skeleton placeholder is only ever there for the first
+                // load, before we know what's actually being served — once
+                // real content is in, swap it out for good. Harmless to
+                // repeat on every later refresh too.
+                skeletonEl?.classList.add('hidden');
+                numberEl.classList.remove('hidden');
+                nameEl.classList.remove('hidden');
 
                 const recentList = document.getElementById('recent-activity');
                 recentList.innerHTML = '';
@@ -280,12 +377,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
             });
         }
-     
+
     }
 
- 
 
-    // Next 
-    
+
+    // Next
+
 });
-
