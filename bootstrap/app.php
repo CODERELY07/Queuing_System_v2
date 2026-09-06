@@ -14,11 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Existed but was never registered anywhere — the admin
-        // dashboard's "Staff Active" count (last_seen within 5 minutes)
-        // has been permanently stuck at 0 with no staff ever recorded as
-        // active. A no-op for guests (it checks auth()->check() first),
-        // so appending it web-wide is safe.
+        $middleware->trustProxies(at: '*');
         $middleware->web(append: [UpdateLastSeen::class]);
 
         $middleware->alias([
@@ -26,5 +22,5 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+
     })->create();
