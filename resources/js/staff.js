@@ -46,4 +46,6 @@ document.addEventListener('DOMContentLoaded', function () {
     
     formRequest("staffForm");
     formRequest("staff-delete");
+    formRequest("serviceForm");
+    formRequest("service-delete");
 });
