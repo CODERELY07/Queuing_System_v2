@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Concerns\BroadcastsSafely;
 use App\Events\QueueCallEvent;
 use App\Events\QueueNextEvent;
 use App\Models\ClientQueues;
@@ -23,6 +24,8 @@ use App\Models\ClientQueues;
  */
 class QueueCallService
 {
+    use BroadcastsSafely;
+
     /**
      * Everything the staff dashboard's top panel needs: the waiting count,
      * up to 3 tickets up next, and whoever's currently being served (or a
@@ -96,7 +99,8 @@ class QueueCallService
         // state rather than trusting the event payload (see queuing.js),
         // so one firing covers whichever ticket actually changed.
         if ($waiting || $current) {
-            event(new QueueNextEvent($waiting ?? $current));
+            $ticket = $waiting ?? $current;
+            $this->broadcastSafely(fn () => event(new QueueNextEvent($ticket)));
         }
 
         return ['success' => true, 'number' => $number];
@@ -123,7 +127,7 @@ class QueueCallService
             return ['success' => true, 'number' => 'None'];
         }
 
-        event(new QueueNextEvent($previous));
+        $this->broadcastSafely(fn () => event(new QueueNextEvent($previous)));
         $current?->update(['status' => 'waiting']);
         $previous->update(['status' => 'serving']);
 
@@ -146,7 +150,7 @@ class QueueCallService
         // The counter is idle again now — without this, the waiting-room
         // display kept showing the no-show ticket as "currently being
         // served" until the next real call finally overwrote it.
-        event(new QueueNextEvent($current));
+        $this->broadcastSafely(fn () => event(new QueueNextEvent($current)));
 
         return ['success' => true, 'number' => $current->formattedNumber()];
     }
@@ -162,7 +166,7 @@ class QueueCallService
             return ['success' => false, 'message' => 'No ticket is being served.', 'status' => 422];
         }
 
-        event(new QueueCallEvent($current));
+        $this->broadcastSafely(fn () => event(new QueueCallEvent($current)));
 
         return ['success' => true];
     }
@@ -190,7 +194,7 @@ class QueueCallService
         $current?->update(['status' => 'waiting']);
 
         $next->update(['status' => 'serving']);
-        event(new QueueCallEvent($next));
+        $this->broadcastSafely(fn () => event(new QueueCallEvent($next)));
 
         return ['success' => true];
     }
