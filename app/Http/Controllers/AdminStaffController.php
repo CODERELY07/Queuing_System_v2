@@ -3,36 +3,38 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreStaffRequest;
+use App\Http\Requests\Admin\UpdateStaffRequest;
 use App\Models\Service;
 use App\Models\User;
 
 use Illuminate\Database\QueryException;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-
 
 class AdminStaffController extends Controller
 {
-        public function index(){
-            $staffs = User::where('user_type', 'staff')
-                ->with('service')
-                ->when(request('q'), fn ($q) => $q->where(function ($q) {
-                    $term = '%' . request('q') . '%';
-                    $q->where('name', 'like', $term)->orWhere('email', 'like', $term);
-                }))
-                ->when(
-                    in_array(request('sort'), ['name', 'email']),
-                    fn ($q) => $q->orderBy(request('sort'), request('dir') === 'desc' ? 'desc' : 'asc'),
-                    fn ($q) => $q->latest(),
-                )
-                ->get();
-            $services = Service::with('users')->get();
-            return view('admin.staff', compact('staffs', 'services'));
-        }
+    public function index()
+    {
+        $staffs = User::where('user_type', 'staff')
+            ->with('service')
+            ->when(request('q'), fn ($q) => $q->where(function ($q) {
+                $term = '%' . request('q') . '%';
+                $q->where('name', 'like', $term)->orWhere('email', 'like', $term);
+            }))
+            ->when(
+                in_array(request('sort'), ['name', 'email']),
+                fn ($q) => $q->orderBy(request('sort'), request('dir') === 'desc' ? 'desc' : 'asc'),
+                fn ($q) => $q->latest(),
+            )
+            ->get();
+        $services = Service::with('users')->get();
+        return view('admin.staff', compact('staffs', 'services'));
+    }
 
-    public function store(Request $request){
+    public function store(StoreStaffRequest $request)
+    {
         try {
-            $staff = $this->validateStaff($request);
+            $staff = $request->validated();
             $staff['password'] = Hash::make($staff['password']);
             $staff['user_type'] = 'staff';
 
@@ -44,10 +46,10 @@ class AdminStaffController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateStaffRequest $request, $id)
     {
         try {
-            $validated = $this->validateStaff($request, $id);
+            $validated = $request->validated();
 
             if (!empty($validated['password'])) {
                 $validated['password'] = Hash::make($validated['password']);
@@ -55,7 +57,11 @@ class AdminStaffController extends Controller
                 unset($validated['password']);
             }
 
-            $updated = User::where('id', $id)->update($validated);
+            // Scoped to user_type='staff' — this endpoint is reached with a
+            // plain numeric id from the staff table, and without the scope
+            // nothing stopped it being pointed at an admin account (its own
+            // included) to silently change that account's password instead.
+            $updated = User::where('user_type', 'staff')->where('id', $id)->update($validated);
 
             return $updated
                 ? $this->jsonSuccess('Staff updated successfully.')
@@ -70,7 +76,10 @@ class AdminStaffController extends Controller
     public function destroy($id)
     {
         try {
-            $deleted = User::destroy($id);
+            // Same reasoning as update(): scope to staff so this can never
+            // be used to delete an admin account by id, including the
+            // caller's own.
+            $deleted = User::where('user_type', 'staff')->where('id', $id)->delete();
 
             return $deleted
                 ? $this->jsonSuccess('Staff deleted successfully.')
@@ -79,19 +88,4 @@ class AdminStaffController extends Controller
             return $this->jsonError($e->getMessage());
         }
     }
-
-    /**
-     * Validation rules shared by create and update. Pass $id to make the
-     * uniqueness checks ignore that record and make the password optional.
-     */
-    private function validateStaff(Request $request, $id = null): array
-    {
-        return $request->validate([
-            'name' => 'required|string|max:50|unique:users,name' . ($id ? ",{$id}" : ''),
-            'email' => 'required|email|unique:users,email' . ($id ? ",{$id}" : ''),
-            'service_id' => 'required|integer|exists:services,id',
-            'password' => $id ? 'nullable|string|confirmed' : 'required|string|confirmed',
-        ]);
-    }
-
 }

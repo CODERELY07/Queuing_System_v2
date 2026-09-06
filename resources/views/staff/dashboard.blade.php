@@ -86,9 +86,13 @@
                                 {{ $queue->service->name ?? 'N/A' }}
                             </td>
                             <td class="px-4 py-3">
-                               <x-row-action-button class="selected-call" data-id="{{ $queue->id }}" id="selected-call-{{ $queue->id }}">
-                                    Call
-                                </x-row-action-button>
+                                @if ($queue->status !== 'finish')
+                                    <x-row-action-button class="selected-call" data-id="{{ $queue->id }}" id="selected-call-{{ $queue->id }}">
+                                        Call
+                                    </x-row-action-button>
+                                @else
+                                    <span class="text-sm text-gray-400 dark:text-gray-500">—</span>
+                                @endif
                             </td>
                         </tr>
                     @empty

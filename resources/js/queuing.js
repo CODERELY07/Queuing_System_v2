@@ -23,6 +23,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(res => res.json())
                 .then(data => {
                     console.log(data);
+
+                    if (data.success === false) {
+                        alert(data.message || 'Could not call this ticket.');
+                        this.disabled = false;
+                        return;
+                    }
+
                     location.reload();
                 })
                 .catch(err => {
@@ -66,8 +73,16 @@ document.addEventListener("DOMContentLoaded", function () {
             .then(res => res.json())
             .then(data => {
                 console.log(data);
+
+                // callNext/callPrevious don't return a `success` field
+                // (there's nothing to fail beyond "nothing to call", which
+                // isn't an error) — only skip/call ever report failure
+                // this way, so this can't misfire on their responses.
+                if (data.success === false) {
+                    alert(data.message || 'Something went wrong.');
+                }
+
                 loadDashboardData();
-                return;
             })
             .catch(err => console.error('Error:', err));
         });
@@ -148,8 +163,14 @@ document.addEventListener("DOMContentLoaded", function () {
         synth.speak(utterance);
     }
 
+    // Fired after "Next Patient" and after a no-show — both leave the
+    // display's idea of "currently serving" stale otherwise. This used to
+    // be a no-op, so a skipped ticket kept showing as "being served" on
+    // the waiting-room board until the next real call happened to
+    // overwrite it.
     window.Echo.channel('queue').listen('.queue.next', (event) => {
-    //    displayQeueue(event);
+        displayQeueue(event);
+        displaySingleQueue();
     });
 
     window.Echo.channel('queue').listen('.queue.prev', (event) => {
