@@ -1,4 +1,4 @@
-<x-guest-layout>
+<x-guest-layout title="Confirm password">
     <x-page-shell>
         <x-card>
             <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">

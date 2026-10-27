@@ -1,92 +1,56 @@
-<x-modal name="{{ $staff ? 'edit-staff-' . $staff->id : 'create-staff' }}" focusable>
+@php
+    // Field ids must be unique on the page: this partial is included once
+    // per staff row plus once for "Add", and every copy used to share the
+    // same ids (name, email, password…), so a <label for> always focused
+    // the first copy's input — usually in a different, hidden dialog.
+    $uid = $staff ? "staff-{$staff->id}" : 'staff-new';
+@endphp
 
-    <div class="p-6">
-        <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-            {{ __($staff ? 'Edit Staff' : 'Add New Staff') }}
-        </h2>
+<x-ajax-form-modal
+    :name="$staff ? 'edit-staff-' . $staff->id : 'create-staff'"
+    :title="$staff ? 'Edit staff member' : 'Add staff member'"
+    :action="$action"
+    :method="$method"
+    :submit="$staff ? 'Save changes' : 'Add staff member'">
 
-        {{-- @if ($staff)
-            <div id="success-message-update" class="mt-4 hidden"></div>
-           
-        @else
-             <div id="success-message-store" class="mt-4 hidden"></div>
-        @endif
-
-         --}}
-
-      
-        <form method="POST" id="staffForm-{{ $staff?->id ?? 'new' }}" data-action="{{ $action }}">
-            @csrf
-            @if($method === 'PUT')
-                @method('PUT')
-            @endif
-
-            <div class="grid grid-cols-1 gap-6 mt-4">
-                <div>
-                    <x-input-label for="name" :value="__('Name')" />
-                    <x-text-input
-                        id="name"
-                        class="block mt-1 w-full"
-                        type="text"
-                        name="name"
-                        :value="old('name', $staff?->name)"
-                        
-                    />
-                </div>
-
-                <div>
-                    <x-input-label for="email" :value="__('Email')" />
-                    <x-text-input
-                        id="email"
-                        class="block mt-1 w-full"
-                        type="email"
-                        name="email"
-                        :value="old('email', $staff?->email)"
-                        
-                    />
-                </div>
-            
-                <div>
-                    <x-input-label for="service" :value="__('Service')" />
-                    <select
-                        id="service_id"
-                        name="service_id"
-                        class="block mt-1 w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-brand-500 focus:ring-brand-500 rounded-md shadow-sm"
-                        
-                    >
-                        <option value=""></option>
-                        @foreach ($services as $service)  
-                            <option value="{{ $service->id }}" {{ (old('service_id', $staff?->service_id) == $service->id) ? 'selected' : '' }}>
-                                {{ $service->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                
-    
-            <div>
-                <x-input-label for="password" :value="__('Password')" />
-                <x-text-input id="password" class="block mt-1 w-full" type="password" name="password" />
-            </div>
-
-            <div>
-                <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
-                <x-text-input id="password_confirmation" class="block mt-1 w-full" type="password" name="password_confirmation"/>
-            </div>
-
-             
-                    
-            </div>
-
-            <div class="flex justify-end mt-6">
-                <x-secondary-button x-on:click="$dispatch('close')">
-                    {{ __('Cancel') }}
-                </x-secondary-button>
-
-                <x-primary-button class="ml-3">
-                    {{ __($staff ? 'Update' : 'Add') }}
-                </x-primary-button>
-            </div>
-        </form>
+    <div>
+        <x-input-label :for="$uid . '-name'" value="Name" />
+        <x-text-input :id="$uid . '-name'" class="mt-1 block w-full" type="text" name="name" maxlength="50"
+                      :value="$staff?->name" autocomplete="off" required />
     </div>
-</x-modal>
+
+    <div>
+        <x-input-label :for="$uid . '-email'" value="Email" />
+        <x-text-input :id="$uid . '-email'" class="mt-1 block w-full" type="email" name="email" maxlength="255"
+                      :value="$staff?->email" autocomplete="off" required />
+    </div>
+
+    <div>
+        <x-input-label :for="$uid . '-service'" value="Department" />
+        <select id="{{ $uid }}-service" name="service_id" class="mt-1 block w-full" required>
+            <option value="" disabled @selected(!$staff)>Choose a department…</option>
+            @foreach ($services as $service)
+                <option value="{{ $service->id }}" @selected($staff?->service_id === $service->id)>{{ $service->name }}</option>
+            @endforeach
+        </select>
+    </div>
+
+    {{-- new-password, not off: browsers ignore autocomplete="off" on
+         password fields and would otherwise fill the *admin's own* saved
+         login into the staff member's password. --}}
+    <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+            <x-input-label :for="$uid . '-password'" value="Password" />
+            <x-text-input :id="$uid . '-password'" class="mt-1 block w-full" type="password" name="password"
+                          autocomplete="new-password" :required="!$staff" />
+        </div>
+        <div>
+            <x-input-label :for="$uid . '-password-confirmation'" value="Confirm password" />
+            <x-text-input :id="$uid . '-password-confirmation'" class="mt-1 block w-full" type="password" name="password_confirmation"
+                          autocomplete="new-password" :required="!$staff" />
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 sm:col-span-2">
+            {{ $staff ? 'Leave blank to keep the current password.' : 'At least 8 characters.' }}
+        </p>
+    </div>
+</x-ajax-form-modal>

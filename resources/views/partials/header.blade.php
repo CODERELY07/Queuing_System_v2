@@ -1,55 +1,60 @@
-<header x-data="{ open: false }" class="bg-white/90 dark:bg-gray-900/90 backdrop-blur border-b border-gray-100 dark:border-gray-800 sticky top-0 z-30">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="flex justify-between items-center h-16">
-      <!-- Logo/Brand -->
-      <a class="flex items-center gap-2 shrink-0" href="{{ route('home') }}">
-        <x-application-logo class="h-7 w-7 text-brand-600 dark:text-brand-400" />
-        <span class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">MedQueue</span>
-      </a>
+@php
+    // One list, rendered by both the desktop bar and the mobile drawer.
+    $links = [
+        ['label' => 'Kiosk', 'route' => 'kiosk'],
+        ['label' => 'Queue display', 'route' => 'display'],
+    ];
+@endphp
 
-      <!-- Main Navigation -->
-      <nav class="hidden md:block">
-        <ul class="flex items-center gap-1">
-          @php $navItem = 'px-3 py-2 rounded-md text-sm font-medium transition'; @endphp
-          <li>
-              <a href="{{ route('kiosk') }}"
-                 class="{{ $navItem }} {{ request()->routeIs('kiosk') ? 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/40' : 'text-gray-600 dark:text-gray-300 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
-                  Kiosk
-              </a>
-          </li>
-          <li>
-              <a href="{{ route('display') }}"
-                 class="{{ $navItem }} {{ request()->routeIs('display') ? 'text-brand-700 dark:text-brand-300 bg-brand-50 dark:bg-brand-900/40' : 'text-gray-600 dark:text-gray-300 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-gray-50 dark:hover:bg-gray-800' }}">
-                  Queue Display
-              </a>
-          </li>
-          <li>
-              <a href="{{ route('login') }}" class="{{ $navItem }} text-gray-600 dark:text-gray-300 hover:text-brand-700 dark:hover:text-brand-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-                  Staff Login
-              </a>
-          </li>
-        </ul>
-      </nav>
+{{-- Public pages are always light (see the `light` class on <html> in
+     layouts/guest), so the bar is plain white with a hairline rule rather
+     than a tinted, translucent strip. --}}
+<header x-data="{ open: false }" @keydown.escape.window="open = false"
+        class="sticky top-0 z-30 border-b border-gray-200 bg-white">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 items-center justify-between">
+            <a class="flex shrink-0 items-center gap-2.5" href="{{ route('home') }}" aria-label="MedQueue home">
+                <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-700 text-white">
+                    <x-application-logo class="h-[18px] w-[18px] text-white" />
+                </span>
+                <span class="text-[15px] font-semibold tracking-tight text-gray-900">MedQueue</span>
+            </a>
 
-      <!-- Mobile Menu Button -->
-      <div class="md:hidden">
-        <button @click="open = ! open" aria-label="Toggle navigation" :aria-expanded="open"
-                class="p-2 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500">
-          <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-            <path x-show="!open" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            <path x-show="open" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+            <nav class="hidden items-center gap-1 md:flex" aria-label="Main">
+                @foreach ($links as $link)
+                    <a href="{{ route($link['route']) }}"
+                       @if (request()->routeIs($link['route'])) aria-current="page" @endif
+                       class="rounded-lg px-3 py-2 text-sm font-medium transition-colors {{ request()->routeIs($link['route']) ? 'bg-brand-50 text-brand-800' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
+                        {{ $link['label'] }}
+                    </a>
+                @endforeach
+
+                @auth
+                    <x-cta-button :href="route('dashboard')" size="sm" class="ml-2">Dashboard</x-cta-button>
+                @else
+                    <x-cta-button :href="route('login')" variant="outline" size="sm" class="ml-2">Staff login</x-cta-button>
+                @endauth
+            </nav>
+
+            <button type="button" @click="open = ! open" aria-label="Toggle navigation" :aria-expanded="open.toString()"
+                    class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-600 transition hover:bg-gray-100 md:hidden">
+                <x-icon.menu class="h-5 w-5" x-show="!open" />
+                <x-icon.x class="h-5 w-5" x-show="open" x-cloak />
+            </button>
+        </div>
+
+        <nav x-show="open" x-cloak x-transition.origin.top class="space-y-1 pb-4 md:hidden" aria-label="Main (mobile)">
+            @foreach ($links as $link)
+                <a href="{{ route($link['route']) }}"
+                   class="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100">
+                    {{ $link['label'] }}
+                </a>
+            @endforeach
+            @auth
+                <a href="{{ route('dashboard') }}" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-gray-100">Dashboard</a>
+            @else
+                <a href="{{ route('login') }}" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-gray-100">Staff login</a>
+            @endauth
+        </nav>
     </div>
-
-    <!-- Mobile Menu -->
-    <div x-show="open" x-transition.origin.top x-cloak class="md:hidden pb-4">
-      <ul class="space-y-1">
-        <li><a href="{{ route('kiosk') }}" class="block px-3 py-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/40 hover:text-brand-700 dark:hover:text-brand-300">Kiosk</a></li>
-        <li><a href="{{ route('display') }}" class="block px-3 py-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/40 hover:text-brand-700 dark:hover:text-brand-300">Queue Display</a></li>
-        <li><a href="{{ route('login') }}" class="block px-3 py-2 rounded-md text-gray-700 dark:text-gray-200 hover:bg-brand-50 dark:hover:bg-brand-900/40 hover:text-brand-700 dark:hover:text-brand-300">Staff Login</a></li>
-      </ul>
-    </div>
-  </div>
 </header>

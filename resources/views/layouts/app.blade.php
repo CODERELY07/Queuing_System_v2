@@ -1,48 +1,44 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-
-        <title>{{ config('app.name', 'Laravel') }}</title>
-        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230D9488' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M4 12h4l2-6 3 12 2-6h5'/%3E%3C/svg%3E">
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700|ibm-plex-mono:400,500,600,700&display=swap" rel="stylesheet" />
-
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @include('partials.head', ['title' => $title])
     </head>
     <body class="font-sans antialiased">
+        <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg dark:focus:bg-gray-800">
+            {{ __('Skip to content') }}
+        </a>
+
         <div
             x-data="{
                 sidebarOpen: false,
-                sidebarCollapsed: localStorage.getItem('sidebarCollapsed') === '1',
+                sidebarCollapsed: (() => { try { return localStorage.getItem('sidebarCollapsed') === '1'; } catch (e) { return false; } })(),
                 toggleSidebar() {
                     this.sidebarCollapsed = !this.sidebarCollapsed;
-                    localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed ? '1' : '0');
+                    try { localStorage.setItem('sidebarCollapsed', this.sidebarCollapsed ? '1' : '0'); } catch (e) {}
                 },
             }"
-            class="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900"
+            @keydown.escape.window="sidebarOpen = false"
+            class="flex h-screen h-dvh overflow-hidden"
         >
             <div x-show="sidebarOpen" x-cloak x-transition.opacity
                  @click="sidebarOpen = false"
-                 class="fixed inset-0 z-30 bg-black/50 sm:hidden"></div>
+                 class="fixed inset-0 z-30 bg-gray-950/40 sm:hidden"></div>
 
             @include('layouts.sidebar-nav')
 
-            <div class="flex-1 flex flex-col min-w-0 overflow-y-auto">
-                @include('layouts.topbar')
+            <div class="flex min-w-0 flex-1 flex-col overflow-y-auto">
+                @include('layouts.topbar', ['search' => $search])
 
-                @isset($header)
-                    <div class="px-4 sm:px-6 lg:px-8 pt-8">
-                        {{ $header }}
+                <main id="main" class="flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+                    <div class="mx-auto w-full max-w-6xl">
+                        @isset($header)
+                            <div class="mb-6">
+                                {{ $header }}
+                            </div>
+                        @endisset
+
+                        {{ $slot }}
                     </div>
-                @endisset
-
-                <main class="flex-1 px-4 sm:px-6 lg:px-8 py-8">
-                    {{ $slot }}
                 </main>
             </div>
         </div>

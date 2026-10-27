@@ -1,30 +1,23 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+{{-- `light`: public pages never switch to dark (see darkMode in tailwind.config.js). --}}
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="light">
     <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta name="csrf-token" content="{{ csrf_token() }}">
-
-        <title>{{ config('app.name', 'Laravel') }}</title>
-        <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230D9488' stroke-width='2'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M4 12h4l2-6 3 12 2-6h5'/%3E%3C/svg%3E">
-
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600,700|ibm-plex-mono:400,500,600,700&display=swap" rel="stylesheet" />
-
-        <!-- Scripts -->
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @include('partials.head', ['title' => $title, 'scheme' => 'light'])
     </head>
-    <body class="font-sans text-gray-900 dark:text-gray-100 antialiased">
-        <div class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900">
+    <body class="font-sans antialiased">
+        <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg dark:focus:bg-gray-800">
+            {{ __('Skip to content') }}
+        </a>
+
+        <div class="flex min-h-screen flex-col">
             @unless ($hideHeader)
                 @include('partials.header')
             @endunless
 
             {{-- A dedicated department display has no header to butt up
                  against and is meant to fill a mounted screen edge to edge,
-                 so it also drops the usual max-w-7xl content cap. --}}
-            <main class="flex-1 w-full {{ $hideHeader ? '' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8' }} {{ $flush ? '' : 'py-12 sm:py-16' }}">
+                 so it also drops the usual max-w-6xl content cap. --}}
+            <main id="main" class="w-full flex-1 {{ $hideHeader ? '' : 'mx-auto max-w-6xl px-4 sm:px-6 lg:px-8' }} {{ $flush ? '' : 'py-10 sm:py-14' }}">
                 {{ $slot }}
             </main>
 

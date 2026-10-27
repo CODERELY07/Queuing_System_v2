@@ -1,49 +1,72 @@
-<div class="flex items-center justify-between gap-3 py-4 h-16 px-4 sm:px-6 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-800">
+{{-- `$search` comes from <x-app-layout :search="true"> — only the pages that
+     actually read `?q=` (the queue tables, the staff list) turn it on. --}}
+<div class="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 dark:border-gray-800 dark:bg-gray-900 sm:px-6 lg:px-8">
 
-    <div class="flex items-center gap-3 min-w-0">
+    <div class="flex min-w-0 flex-1 items-center gap-3">
         <button type="button" @click="sidebarOpen = true"
-                class="sm:hidden flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 sm:hidden"
                 aria-label="{{ __('Open menu') }}">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            <x-icon.menu class="h-5 w-5" />
         </button>
 
-        <form method="GET" action="{{ url()->current() }}" class="w-full max-w-sm">
-            @foreach (request()->except(['q', 'page']) as $key => $value)
-                <input type="hidden" name="{{ $key }}" value="{{ $value }}">
-            @endforeach
-            <label class="relative block">
-                <svg xmlns="http://www.w3.org/2000/svg" class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-                <input type="search" name="q" value="{{ request('q') }}" placeholder="{{ __('Search for anything') }}"
-                       class="w-full rounded-full border-gray-200 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 pl-9 pr-3 py-2 text-sm focus:border-brand-500 focus:ring-brand-500" />
-            </label>
-        </form>
+        @if ($search)
+            {{-- Pressing "/" anywhere on the page jumps to the box (unless
+                 you're already typing in a field). The clear button is a
+                 plain link back to the same page minus `q`, so it works
+                 without JS and keeps sort/filter params. --}}
+            <form method="GET" action="{{ url()->current() }}" role="search"
+                  x-data="{ focused: false }"
+                  @keydown.window.slash="if (!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) { $event.preventDefault(); $refs.q.focus(); }"
+                  class="w-full max-w-2xl">
+                @foreach (request()->except(['q', 'page']) as $key => $value)
+                    @if (is_scalar($value))
+                        <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+                    @endif
+                @endforeach
+                <label class="group relative block">
+                    <span class="sr-only">{{ __('Search') }}</span>
+                    <x-icon.search class="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-brand-600" />
+                    <input type="search" name="q" x-ref="q" value="{{ request('q') }}" maxlength="100"
+                           @focus="focused = true" @blur="focused = false"
+                           placeholder="{{ __('Search by name or ticket number…') }}"
+                           class="h-10 w-full rounded-full border border-gray-200 bg-gray-50 pl-11 pr-20 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 transition focus:border-brand-500 focus:bg-white focus:shadow-md focus:ring-2 focus:ring-brand-500/20 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:focus:bg-gray-900 [&::-webkit-search-cancel-button]:appearance-none" />
+
+                    <span class="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5">
+                        @if (request()->filled('q'))
+                            <a href="{{ url()->current() . (($rest = http_build_query(request()->except(['q', 'page']))) ? '?' . $rest : '') }}"
+                               class="flex h-6 w-6 items-center justify-center rounded-full text-gray-400 transition hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                               aria-label="{{ __('Clear search') }}">
+                                <x-icon.x class="h-3.5 w-3.5" />
+                            </a>
+                        @else
+                            <kbd x-show="!focused" class="pointer-events-none hidden rounded-md border border-gray-200 bg-white px-1.5 py-0.5 font-mono text-[11px] font-medium text-gray-400 dark:border-gray-700 dark:bg-gray-900 sm:block" aria-hidden="true">/</kbd>
+                        @endif
+                    </span>
+                </label>
+            </form>
+        @endif
     </div>
 
     <x-dropdown align="right" width="56">
         <x-slot name="trigger">
-            <button class="flex items-center gap-2.5 rounded-full pl-1 pr-3 py-1 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
-                <x-avatar-initials :name="Auth::user()->name" />
-                <span class="hidden sm:block text-sm font-medium text-gray-700 dark:text-gray-200">{{ Auth::user()->name }}</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
+            <button type="button" class="flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-2 transition hover:bg-gray-100 dark:hover:bg-gray-800" aria-haspopup="menu">
+                <x-avatar-initials :name="Auth::user()->name" size="sm" />
+                <span class="hidden text-sm font-medium text-gray-700 dark:text-gray-200 sm:block">{{ Auth::user()->name }}</span>
+                <x-icon.chevron-down class="h-4 w-4 text-gray-400" />
             </button>
         </x-slot>
 
         <x-slot name="content">
-            <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700">
-                <p class="text-sm font-medium text-gray-900 dark:text-white">{{ Auth::user()->name }}</p>
-                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">{{ Auth::user()->email }}</p>
+            <div class="border-b border-gray-100 px-4 py-3 dark:border-gray-700">
+                <p class="truncate text-sm font-medium text-gray-900 dark:text-white">{{ Auth::user()->name }}</p>
+                <p class="truncate text-xs text-gray-500 dark:text-gray-400">{{ Auth::user()->email }}</p>
+                <p class="mt-1.5 inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium capitalize text-gray-600 dark:bg-gray-700 dark:text-gray-300">{{ Auth::user()->user_type }}</p>
             </div>
             <x-dropdown-link :href="route('profile.edit')">{{ __('Profile') }}</x-dropdown-link>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <x-dropdown-link :href="route('logout')" onclick="event.preventDefault(); this.closest('form').submit();">
-                    {{ __('Log Out') }}
+                    {{ __('Log out') }}
                 </x-dropdown-link>
             </form>
         </x-slot>

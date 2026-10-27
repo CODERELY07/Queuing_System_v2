@@ -1,3 +1,5 @@
 @props(['disabled' => false])
 
-<input @disabled($disabled) {{ $attributes->merge(['class' => 'border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-brand-500 dark:focus:border-brand-500 focus:ring-brand-500 dark:focus:ring-brand-500 rounded-md shadow-sm transition']) }}>
+{{-- The look (border, radius, focus ring) comes from the shared form-control
+     rules in app.css, so this component only adds the disabled state. --}}
+<input @disabled($disabled) {{ $attributes->merge(['class' => 'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:opacity-70 dark:disabled:bg-gray-800']) }}>
