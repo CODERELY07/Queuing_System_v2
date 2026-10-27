@@ -1,66 +1,52 @@
-document.addEventListener("DOMContentLoaded", function () {
-    // The registration form and the ticket confirmation are both served
-    // from "/kiosk" (the POST back to the same URL renders the ticket
-    // view directly, no redirect) — so the pathname alone can't tell them
-    // apart. Only the ticket page actually has a #print button.
-    const printButton = document.getElementById('print');
-    if (!printButton) {
-        return;
-    }
+/**
+ * The kiosk ticket screen: print the ticket, then reset the kiosk for the
+ * next visitor — immediately after printing, or after 15 seconds of nobody
+ * touching it.
+ *
+ * Active only on the page that has a #print button.
+ */
+import { byId, onReady } from './lib/dom';
 
-    // Reuses the "Back to Kiosk" link's own href — rendered server-side via
-    // route('kiosk') — as the single source of truth for where "back"
-    // means, rather than hardcoding the path again here.
-    const kioskUrl = document.getElementById('back-to-kiosk')?.href || '/kiosk';
+const RESET_AFTER_SECONDS = 15;
 
-    printButton.addEventListener('click', function () {
-        const printContents = document.getElementById('print-body').innerHTML;
-        const printWindow = window.open('', '', 'width=800,height=600');
-        printWindow.document.writeln(`
-            <html>
-                <head>
-                    <title>Print Queue Number</title>
-                    <style>
-                        body { font-family: sans-serif; text-align: center; padding: 20px; }
-                        .text-5xl { font-size: 3rem; }
-                        .font-bold { font-weight: bold; }
-                        .mb-4 { margin-bottom: 1rem; }
-                        .py-6 { padding-top: 1.5rem; padding-bottom: 1.5rem; }
-                    </style>
-                </head>
-                <body onload="window.print(); window.close();">
-                    ${printContents}
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
+onReady(() => {
+    const printButton = byId('print');
+    if (!printButton) return;
 
-        // The print popup above is independent of this page and keeps
-        // printing (then closes itself) even after this one navigates away
-        // — the short delay just gives the print dialog a moment to
-        // actually appear before the kiosk resets for the next visitor.
-        setTimeout(function () {
-            window.location.href = kioskUrl;
-        }, 1500);
-    });
+    // The "Back to Kiosk" link's own href — rendered server-side from
+    // route('kiosk') — is the single source of truth for where "back"
+    // means, rather than hardcoding the path a second time here.
+    const kioskUrl = byId('back-to-kiosk')?.href || '/kiosk';
+    const goBack = () => {
+        window.location.href = kioskUrl;
+    };
 
-    // Kiosk self-reset: nobody's meant to linger on the ticket screen —
-    // whether they printed or just walked off without touching anything,
-    // the machine needs to be ready for the next visitor within a bounded
-    // time either way.
-    let secondsLeft = 15;
-    const secondsEl = document.getElementById('auto-redirect-seconds');
+    // Print the page itself: app.css's @media print rules show only the
+    // ticket (#print-body) and hide everything else. This replaces a
+    // popup window whose hand-written stylesheet never matched the
+    // ticket's classes — so the printed number came out at body-text size
+    // — and which any popup blocker could kill.
+    printButton.addEventListener('click', () => window.print());
 
-    const countdown = setInterval(function () {
+    // Fires when the print dialog closes, whether the visitor printed or
+    // cancelled — either way they're done with this screen. The short
+    // delay lets the browser finish handing the job to the printer.
+    window.addEventListener('afterprint', () => setTimeout(goBack, 800));
+
+    // Kiosk self-reset: nobody is meant to linger on the ticket screen,
+    // so whether they printed or just walked off, the machine is ready
+    // for the next visitor within a bounded time.
+    const secondsEl = byId('auto-redirect-seconds');
+    let secondsLeft = RESET_AFTER_SECONDS;
+
+    const countdown = setInterval(() => {
         secondsLeft -= 1;
 
-        if (secondsEl) {
-            secondsEl.textContent = secondsLeft;
-        }
+        if (secondsEl) secondsEl.textContent = secondsLeft;
 
         if (secondsLeft <= 0) {
             clearInterval(countdown);
-            window.location.href = kioskUrl;
+            goBack();
         }
     }, 1000);
 });

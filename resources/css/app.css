@@ -7,14 +7,56 @@
 }
 
 @layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-rendering: optimizeLegibility;
+    }
+
+    body {
+        @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+    }
+
     ::selection {
-        @apply bg-brand-200 text-brand-900;
+        @apply bg-brand-200 text-brand-950;
     }
 
     /* Visible, brand-colored focus ring for keyboard navigation, without
        adding an outline on top of Tailwind Forms' own focus:ring utilities. */
     :focus-visible {
-        @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+        @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-gray-50 dark:ring-offset-gray-900;
+    }
+
+    /* One definition of what a text field looks like, for every input,
+       select and textarea in the app — including the ones that aren't
+       rendered through <x-text-input> (the admin modals' <select>s, the
+       topbar search). A hairline border and a barely-there inset keep
+       fields feeling like part of the page rather than boxes stuck on it. */
+    input[type='text'],
+    input[type='email'],
+    input[type='password'],
+    input[type='search'],
+    input[type='number'],
+    input[type='tel'],
+    input[type='url'],
+    select,
+    textarea {
+        @apply rounded-lg border-gray-300 bg-white text-gray-900 placeholder:text-gray-400
+               shadow-[inset_0_1px_1px_rgb(28_27_25/0.03)]
+               transition-colors duration-150
+               focus:border-brand-500 focus:ring-1 focus:ring-brand-500 focus:ring-offset-0
+               dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:placeholder:text-gray-500
+               dark:focus:border-brand-400 dark:focus:ring-brand-400;
+    }
+
+    input[type='checkbox'],
+    input[type='radio'] {
+        @apply border-gray-300 text-brand-600 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-900;
+    }
+
+    /* The one place a table's header row is styled — it was a 3-class
+       string hand-copied onto every <th> in five tables. */
+    th {
+        @apply whitespace-nowrap;
     }
 }
 
@@ -24,13 +66,43 @@
     @media (prefers-reduced-motion: reduce) {
         .animate-fade-up,
         .animate-flash-once,
+        .animate-toast-in,
         .animate-pulse {
             animation: none !important;
+        }
+
+        .sidebar-drawer,
+        .nav-label {
+            transition: none !important;
         }
     }
 }
 
 @layer components {
+    /* Table chrome shared by the staff queue table and all admin tables:
+       small, quiet column headers and hairline row dividers instead of a
+       filled header bar. */
+    .data-table {
+        @apply min-w-full text-sm;
+    }
+
+    .data-table thead th {
+        @apply px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400
+               border-b border-gray-200 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-800/60;
+    }
+
+    .data-table tbody tr {
+        @apply border-b border-gray-100 last:border-0 dark:border-gray-700/60 transition-colors;
+    }
+
+    .data-table tbody tr:hover {
+        @apply bg-gray-50/70 dark:bg-gray-700/30;
+    }
+
+    .data-table td {
+        @apply px-4 py-3 align-middle text-gray-900 dark:text-gray-200;
+    }
+
     /* The off-canvas sidebar's open/closed transform. Deliberately its own
        plain CSS rule rather than Tailwind's translate-x-* utilities:
        Alpine's `:class` toggling can't reliably remove a utility class that
@@ -90,5 +162,81 @@
             width: auto;
             opacity: 1;
         }
+    }
+}
+
+/* The paper queue ticket on the homepage hero. The notches are real
+   cut-outs (a mask, not circles painted in the background color), so the
+   ticket sits correctly on any surface; the drop shadow goes on a wrapper
+   because a mask would clip a box-shadow on the masked element itself. */
+@layer components {
+    .ticket-top,
+    .ticket-bottom {
+        --notch: 9px;
+    }
+
+    .ticket-top {
+        border-radius: 12px 12px 0 0;
+        -webkit-mask:
+            radial-gradient(circle var(--notch) at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+            radial-gradient(circle var(--notch) at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+        mask:
+            radial-gradient(circle var(--notch) at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+            radial-gradient(circle var(--notch) at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+    }
+
+    .ticket-bottom {
+        border-radius: 0 0 12px 12px;
+        -webkit-mask:
+            radial-gradient(circle var(--notch) at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+            radial-gradient(circle var(--notch) at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+        mask:
+            radial-gradient(circle var(--notch) at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+            radial-gradient(circle var(--notch) at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+    }
+
+    /* Decorative barcode: bars of varying width from one gradient. */
+    .ticket-barcode {
+        background: repeating-linear-gradient(
+            90deg,
+            #1c1b19 0 2px, transparent 2px 4px,
+            #1c1b19 4px 5px, transparent 5px 8px,
+            #1c1b19 8px 11px, transparent 11px 13px,
+            #1c1b19 13px 14px, transparent 14px 16px
+        );
+    }
+
+    /* Quiet dotted ground behind the hero tickets. */
+    .dot-grid {
+        background-image: radial-gradient(rgb(36 90 96 / 0.18) 1px, transparent 1px);
+        background-size: 18px 18px;
+    }
+}
+
+/* Print stylesheet for the kiosk ticket. print.js just calls window.print();
+   these rules make the paper show only the ticket (#print-body) — the card,
+   header, buttons and countdown are all hidden — centered and in plain
+   black on white, whatever the screen theme was. */
+@media print {
+    @page {
+        margin: 12mm;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+
+    #print-body,
+    #print-body * {
+        visibility: visible;
+        color: #000 !important;
+    }
+
+    #print-body {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        text-align: center;
     }
 }

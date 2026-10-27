@@ -1,12 +1,18 @@
 import './bootstrap';
-import './queuing';
+import './counter';
+import './display';
+import './admin-forms';
 import './print';
-import './staff';
 
 import Alpine from 'alpinejs';
 
-window.Alpine = Alpine;
+import liveStatus from './live-status';
+import { onReady } from './lib/dom';
+import { flushQueuedToast } from './lib/toast';
 
+window.Alpine = Alpine;
+Alpine.data('liveStatus', liveStatus);
 Alpine.start();
 
-
+// Shows the confirmation for an action that finished by reloading the page.
+onReady(flushQueuedToast);
