@@ -6,6 +6,8 @@ use App\Concerns\BroadcastsSafely;
 use App\Events\QueueCallEvent;
 use App\Events\QueueNextEvent;
 use App\Models\ClientQueues;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * The staff counter's queue-control actions: call next, recall the
@@ -21,57 +23,63 @@ use App\Models\ClientQueues;
  * rather than throwing — a staff member hitting "No-show" with nobody
  * being served is an expected, everyday outcome here, not an exceptional
  * one, so the controller just turns this straight into JSON.
+ *
+ * Anything that changes more than one row runs in a transaction, with the
+ * rows locked while it decides: two counters in the same department
+ * pressing "Next" at the same moment can no longer both pick the same
+ * waiting ticket, and a failure between "finish the current one" and
+ * "start the next one" can no longer leave the queue half-moved. Events
+ * are dispatched only after the transaction commits, so a listener's
+ * re-fetch never sees the old state.
  */
 class QueueCallService
 {
     use BroadcastsSafely;
 
+    public function __construct(private readonly QueueStatsService $stats)
+    {
+    }
+
     /**
-     * Everything the staff dashboard's top panel needs: the waiting count,
+     * Everything the staff dashboard's live panels need: today's counters,
      * up to 3 tickets up next, and whoever's currently being served (or a
      * synthetic "start queue" / "no queue" placeholder when nobody is).
      */
     public function dashboardSnapshot(int $serviceId): array
     {
-        $recent = ClientQueues::status('waiting')
+        $counts = $this->stats->todayCounts($serviceId);
+
+        $upNext = ClientQueues::status('waiting')
             ->forService($serviceId)
+            ->today()
             ->nextInLine()
             ->take(3)
             ->get()
-            ->map(fn ($q) => [
-                'number' => $q->formattedNumber(),
-                'status' => ucfirst($q->status),
-                'priority' => $q->priority,
+            ->map(fn ($ticket) => [
+                'number' => $ticket->formattedNumber(),
+                'priority' => $ticket->priority,
             ]);
 
-        // Scoped to today so this matches the "Waiting today" stat card the
-        // staff dashboard renders server-side and then keeps polling here.
-        $waitingCount = ClientQueues::status('waiting')
-            ->forService($serviceId)
-            ->whereDate('created_at', now())
-            ->count();
+        $serving = $this->serving($serviceId)->first();
 
-        $servingPatient = ClientQueues::status('serving')
-            ->forService($serviceId)
-            ->orderBy('queue_number')
-            ->first();
-
-        if ($servingPatient) {
-            $formatted = [
-                'number' => $servingPatient->formattedNumber(),
-                'name' => ucfirst($servingPatient->name),
-                'priority' => $servingPatient->priority,
+        if ($serving) {
+            $current = [
+                'number' => $serving->formattedNumber(),
+                'name' => ucfirst($serving->name),
+                'priority' => $serving->priority,
             ];
-        } elseif ($waitingCount > 0) {
-            $formatted = ['number' => 'Start Queue', 'name' => 'Patient is waiting...', 'priority' => false];
+        } elseif ($counts['waiting'] > 0) {
+            $current = ['number' => 'Start Queue', 'name' => 'Patient is waiting...', 'priority' => false];
         } else {
-            $formatted = ['number' => 'No Queue', 'name' => 'No work', 'priority' => false];
+            $current = ['number' => 'No Queue', 'name' => 'No work', 'priority' => false];
         }
 
         return [
-            'waiting' => $waitingCount,
-            'recent' => $recent,
-            'servingPatient' => $formatted,
+            'waiting' => $counts['waiting'],
+            'skipped' => $counts['skipped'],
+            'finished' => $counts['finished'],
+            'recent' => $upNext,
+            'servingPatient' => $current,
         ];
     }
 
@@ -81,29 +89,37 @@ class QueueCallService
      */
     public function callNext(int $serviceId): array
     {
-        $waiting = ClientQueues::status('waiting')->forService($serviceId)->nextInLine()->first();
-        $current = ClientQueues::status('serving')->forService($serviceId)->orderBy('queue_number')->first();
+        [$finished, $called] = DB::transaction(function () use ($serviceId) {
+            // Every serving ticket for the department, not just today's
+            // single one — also tidies up a ticket nobody closed out
+            // yesterday, which would otherwise stay "serving" forever.
+            $finished = ClientQueues::status('serving')->forService($serviceId)->lockForUpdate()->get();
 
-        $current?->update(['status' => 'finish']);
+            $called = ClientQueues::status('waiting')
+                ->forService($serviceId)
+                ->today()
+                ->nextInLine()
+                ->lockForUpdate()
+                ->first();
 
-        if ($waiting) {
-            $waiting->update(['status' => 'serving']);
-            $number = $waiting->formattedNumber();
-        } else {
-            // Nothing waiting — the counter goes idle.
-            $number = 'None';
+            $finished->each->update(['status' => 'finish']);
+            $called?->update(['status' => 'serving']);
+
+            return [$finished, $called];
+        });
+
+        // One refresh signal for the waiting-room display, after both
+        // status changes have landed. Listeners re-fetch live state rather
+        // than trusting the payload, so one firing covers whichever ticket
+        // actually changed.
+        $changed = $called ?? $finished->last();
+
+        if ($changed) {
+            $this->broadcastSafely(fn () => event(new QueueNextEvent($changed)));
         }
 
-        // One refresh signal for the waiting-room display, fired after
-        // both status changes have landed. The listener re-fetches live
-        // state rather than trusting the event payload (see queuing.js),
-        // so one firing covers whichever ticket actually changed.
-        if ($waiting || $current) {
-            $ticket = $waiting ?? $current;
-            $this->broadcastSafely(fn () => event(new QueueNextEvent($ticket)));
-        }
-
-        return ['success' => true, 'number' => $number];
+        // Nothing waiting — the counter goes idle.
+        return ['success' => true, 'number' => $called?->formattedNumber() ?? 'None'];
     }
 
     /**
@@ -113,23 +129,33 @@ class QueueCallService
      */
     public function callPrevious(int $serviceId): array
     {
-        $current = ClientQueues::status('serving')->forService($serviceId)->first();
+        $previous = DB::transaction(function () use ($serviceId) {
+            // Includes 'skipped', not just 'finish' — if the last thing
+            // that happened was a no-show, "Previous Patient" should undo
+            // *that*, not reach past it for whichever ticket finished
+            // before it.
+            $previous = ClientQueues::forService($serviceId)
+                ->today()
+                ->whereIn('status', ['finish', 'skipped'])
+                ->orderByDesc('queue_number')
+                ->lockForUpdate()
+                ->first();
 
-        // Includes 'skipped', not just 'finish' — if the last thing that
-        // happened was a no-show, "Previous Patient" should undo *that*,
-        // not reach past it for whichever ticket finished before it.
-        $previous = ClientQueues::forService($serviceId)
-            ->whereIn('status', ['finish', 'skipped'])
-            ->orderBy('queue_number', 'desc')
-            ->first();
+            if (!$previous) {
+                return null;
+            }
+
+            $this->serving($serviceId)->lockForUpdate()->get()->each->update(['status' => 'waiting']);
+            $previous->update(['status' => 'serving']);
+
+            return $previous;
+        });
 
         if (!$previous) {
             return ['success' => true, 'number' => 'None'];
         }
 
         $this->broadcastSafely(fn () => event(new QueueNextEvent($previous)));
-        $current?->update(['status' => 'waiting']);
-        $previous->update(['status' => 'serving']);
 
         return ['success' => true, 'number' => $previous->formattedNumber()];
     }
@@ -139,13 +165,16 @@ class QueueCallService
      */
     public function skip(int $serviceId): array
     {
-        $current = ClientQueues::status('serving')->forService($serviceId)->first();
+        $current = DB::transaction(function () use ($serviceId) {
+            $current = $this->serving($serviceId)->lockForUpdate()->first();
+            $current?->update(['status' => 'skipped']);
+
+            return $current;
+        });
 
         if (!$current) {
             return ['success' => false, 'message' => 'No ticket is being served.', 'status' => 422];
         }
-
-        $current->update(['status' => 'skipped']);
 
         // The counter is idle again now — without this, the waiting-room
         // display kept showing the no-show ticket as "currently being
@@ -160,7 +189,7 @@ class QueueCallService
      */
     public function recall(int $serviceId): array
     {
-        $current = ClientQueues::status('serving')->forService($serviceId)->first();
+        $current = $this->serving($serviceId)->first();
 
         if (!$current) {
             return ['success' => false, 'message' => 'No ticket is being served.', 'status' => 422];
@@ -177,25 +206,49 @@ class QueueCallService
      */
     public function callSelected(int $serviceId, int $ticketId): array
     {
-        $next = ClientQueues::where('id', $ticketId)->forService($serviceId)->first();
+        $outcome = DB::transaction(function () use ($serviceId, $ticketId) {
+            $ticket = ClientQueues::forService($serviceId)->lockForUpdate()->find($ticketId);
 
-        if (!$next) {
-            return ['success' => false, 'message' => 'Ticket not found.', 'status' => 404];
+            if (!$ticket) {
+                return ['success' => false, 'message' => 'Ticket not found.', 'status' => 404];
+            }
+
+            // A finished ticket has nothing left to call — without this,
+            // the "Call" button could resurrect a completed visit as
+            // "currently serving" again.
+            if ($ticket->status === 'finish') {
+                return ['success' => false, 'message' => 'This ticket is already finished.', 'status' => 422];
+            }
+
+            // Already at the counter: "Call" on that row just announces it
+            // again. It used to run the swap below regardless — which put
+            // the ticket back to 'waiting' (as the "current" one) and then
+            // failed to set it 'serving' again (no change from the
+            // in-memory copy's point of view), quietly un-serving the
+            // patient in front of the counter.
+            if ($ticket->status !== 'serving') {
+                $this->serving($serviceId)->lockForUpdate()->get()->each->update(['status' => 'waiting']);
+                $ticket->update(['status' => 'serving']);
+            }
+
+            return ['success' => true, 'ticket' => $ticket];
+        });
+
+        if (!$outcome['success']) {
+            return $outcome;
         }
 
-        // A finished ticket has nothing left to call — without this, the
-        // "Call" button could resurrect a completed visit as "currently
-        // serving" again.
-        if ($next->status === 'finish') {
-            return ['success' => false, 'message' => 'This ticket is already finished.', 'status' => 422];
-        }
-
-        $current = ClientQueues::status('serving')->forService($serviceId)->first();
-        $current?->update(['status' => 'waiting']);
-
-        $next->update(['status' => 'serving']);
-        $this->broadcastSafely(fn () => event(new QueueCallEvent($next)));
+        $this->broadcastSafely(fn () => event(new QueueCallEvent($outcome['ticket'])));
 
         return ['success' => true];
+    }
+
+    /**
+     * Today's serving ticket(s) for a department — the counter's current
+     * patient.
+     */
+    private function serving(int $serviceId): Builder
+    {
+        return ClientQueues::status('serving')->forService($serviceId)->today()->orderBy('queue_number');
     }
 }

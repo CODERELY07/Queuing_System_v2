@@ -10,12 +10,20 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Kiosk ticket issuance — turning a validated {name, service_id, priority}
- * into a numbered ticket. Pulled out of ClientQueueController so the
- * numbering/locking logic can be reused or tested without an HTTP request.
+ * into a numbered ticket, and estimating how long it'll take to be called.
+ * Pulled out of ClientQueueController so the numbering/locking logic can be
+ * reused or tested without an HTTP request.
  */
 class ClientQueueService
 {
     use BroadcastsSafely;
+
+    /**
+     * Rough minutes of counter time per person ahead of you. A flat guess:
+     * there's no per-visit duration recorded to average over (see
+     * QueueStatsService::avgTurnaroundMinutesToday() for the closest proxy).
+     */
+    private const MINUTES_PER_TICKET = 2;
 
     public function createTicket(array $data): ClientQueues
     {
@@ -55,11 +63,50 @@ class ClientQueueService
         $queue->setRelation('service', Service::find($data['service_id']));
 
         // Lets that department's staff dashboard pick up the new ticket
-        // live — see queuing.js's `.queue.updated` listener. Wrapped: a
+        // live — see counter.js's `.queue.updated` listener. Wrapped: a
         // visitor getting a ticket must never fail just because the
         // real-time layer isn't reachable (see BroadcastsSafely).
         $this->broadcastSafely(fn () => event(new QueueUpdatedEvent($queue)));
 
         return $queue;
+    }
+
+    /**
+     * Estimated minutes until this ticket is called: the people ahead of it
+     * today × a flat per-person guess.
+     *
+     * "Ahead" follows the counter's own call order (see
+     * ClientQueues::scopeNextInLine): whoever's being served right now,
+     * plus the waiting tickets that sort before this one — every priority
+     * ticket for a regular ticket, only earlier priority tickets for a
+     * priority one. This replaces `queue_number × 2`, which ignored both
+     * the priority lane and the fact that ticket numbers never reset — so
+     * ticket 150 was told to expect a 300-minute wait.
+     */
+    public function estimatedWaitMinutes(ClientQueues $queue): int
+    {
+        $ahead = ClientQueues::forService($queue->service_id)
+            ->today()
+            ->whereKeyNot($queue->getKey())
+            ->where(function ($query) use ($queue) {
+                $query->where('status', 'serving')
+                    ->orWhere(function ($waiting) use ($queue) {
+                        $waiting->where('status', 'waiting')
+                            ->where(function ($sorted) use ($queue) {
+                                // Earlier in the same lane...
+                                $sorted->where(fn ($lane) => $lane
+                                    ->where('priority', $queue->priority)
+                                    ->where('queue_number', '<', $queue->queue_number));
+
+                                // ...and, for a regular ticket, the whole priority lane.
+                                if (!$queue->priority) {
+                                    $sorted->orWhere('priority', true);
+                                }
+                            });
+                    });
+            })
+            ->count();
+
+        return $ahead * self::MINUTES_PER_TICKET;
     }
 }

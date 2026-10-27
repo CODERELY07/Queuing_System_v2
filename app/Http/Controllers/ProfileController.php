@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -47,6 +48,12 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        // Deleting the only admin would leave nobody able to manage staff,
+        // services or queues — and nobody able to create another admin.
+        if ($user->user_type === 'admin' && User::where('user_type', 'admin')->count() <= 1) {
+            return Redirect::route('profile.edit')->with('error', "You can't delete the only admin account.");
+        }
 
         Auth::logout();
 

@@ -5,45 +5,32 @@ namespace Database\Seeders;
 use App\Models\Service;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
+    /**
+     * Creates (or refreshes) the demo accounts listed in config/demo.php —
+     * the same list the login page offers one-click sign-in for.
+     */
     public function run(): void
     {
-        $adminService = Service::where('name', 'Admin')->first();
+        foreach (config('demo.accounts') as $account) {
+            $service = Service::where('name', $account['service'])->first();
 
-        User::updateOrCreate(
-            ['email' => 'admin@medqueue.test'],
-            [
-                'name' => 'admin',
-                'user_type' => 'admin',
-                'service_id' => $adminService?->id,
-                'password' => Hash::make('admin12345'),
-            ]
-        );
-
-        $staffAccounts = [
-            'Registration' => 'registration@medqueue.test',
-            'Doctor Consultation' => 'doctor@medqueue.test',
-            'Pharmacy' => 'pharmacy@medqueue.test',
-            'Emergency' => 'emergency@medqueue.test',
-        ];
-
-        foreach ($staffAccounts as $serviceName => $email) {
-            $service = Service::where('name', $serviceName)->first();
-
+            // A staff account needs its department to exist; skip rather
+            // than fail the whole seed if an admin has since renamed it.
             if (!$service) {
                 continue;
             }
 
+            // Plain password: the model's 'hashed' cast hashes it.
             User::updateOrCreate(
-                ['email' => $email],
+                ['email' => $account['email']],
                 [
-                    'name' => "{$serviceName} Staff",
-                    'user_type' => 'staff',
+                    'name' => $account['name'],
+                    'user_type' => $account['user_type'],
                     'service_id' => $service->id,
-                    'password' => Hash::make('staff12345'),
+                    'password' => $account['password'],
                 ]
             );
         }

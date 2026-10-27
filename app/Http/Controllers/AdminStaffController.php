@@ -2,90 +2,69 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreStaffRequest;
 use App\Http\Requests\Admin\UpdateStaffRequest;
 use App\Models\Service;
 use App\Models\User;
-
-use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\JsonResponse;
+use Illuminate\View\View;
 
 class AdminStaffController extends Controller
 {
-    public function index()
+    public function index(): View
     {
         $staffs = User::where('user_type', 'staff')
             ->with('service')
-            ->when(request('q'), fn ($q) => $q->where(function ($q) {
-                $term = '%' . request('q') . '%';
-                $q->where('name', 'like', $term)->orWhere('email', 'like', $term);
-            }))
+            ->search(request('q'))
             ->when(
-                in_array(request('sort'), ['name', 'email']),
-                fn ($q) => $q->orderBy(request('sort'), request('dir') === 'desc' ? 'desc' : 'asc'),
-                fn ($q) => $q->latest(),
+                in_array(request('sort'), ['name', 'email'], true),
+                fn ($query) => $query->orderBy(request('sort'), request('dir') === 'desc' ? 'desc' : 'asc'),
+                fn ($query) => $query->latest(),
             )
             ->get();
-        $services = Service::with('users')->get();
+
+        // Real departments only — the internal "Admin" bucket isn't a
+        // counter anyone can be assigned to.
+        $services = Service::publicFacing()->orderBy('name')->get();
+
         return view('admin.staff', compact('staffs', 'services'));
     }
 
-    public function store(StoreStaffRequest $request)
+    public function store(StoreStaffRequest $request): JsonResponse
     {
-        try {
-            $staff = $request->validated();
-            $staff['password'] = Hash::make($staff['password']);
-            $staff['user_type'] = 'staff';
+        // The 'hashed' cast on User hashes the password; user_type isn't
+        // in the request, so it's set here and can't be spoofed by it.
+        User::create($request->validated() + ['user_type' => 'staff']);
 
-            User::create($staff);
-
-            return $this->jsonSuccess('Staff Added Successfully!');
-        } catch (\Throwable $e) {
-            return $this->jsonError($e->getMessage());
-        }
+        return $this->jsonSuccess('Staff member added.');
     }
 
-    public function update(UpdateStaffRequest $request, $id)
+    public function update(UpdateStaffRequest $request, int $id): JsonResponse
     {
-        try {
-            $validated = $request->validated();
+        $validated = $request->validated();
 
-            if (!empty($validated['password'])) {
-                $validated['password'] = Hash::make($validated['password']);
-            } else {
-                unset($validated['password']);
-            }
-
-            // Scoped to user_type='staff' — this endpoint is reached with a
-            // plain numeric id from the staff table, and without the scope
-            // nothing stopped it being pointed at an admin account (its own
-            // included) to silently change that account's password instead.
-            $updated = User::where('user_type', 'staff')->where('id', $id)->update($validated);
-
-            return $updated
-                ? $this->jsonSuccess('Staff updated successfully.')
-                : $this->jsonError('No changes were made.');
-        } catch (QueryException $e) {
-            return $this->jsonError('Database error: ' . $e->getMessage());
-        } catch (\Exception $e) {
-            return $this->jsonError('Unexpected error: ' . $e->getMessage());
+        // A blank password on edit means "keep the current one".
+        if (blank($validated['password'] ?? null)) {
+            unset($validated['password']);
         }
+
+        // Scoped to staff: this endpoint is reached with a plain numeric id
+        // from the staff table, and without the scope nothing stopped it
+        // being pointed at an admin account (its own included) to silently
+        // change that account's password instead. A model instance, so the
+        // 'hashed' cast applies to a new password.
+        $staff = User::where('user_type', 'staff')->findOrFail($id);
+        $staff->update($validated);
+
+        return $this->jsonSuccess($staff->wasChanged() ? 'Staff member updated.' : 'No changes to save.');
     }
 
-    public function destroy($id)
+    public function destroy(int $id): JsonResponse
     {
-        try {
-            // Same reasoning as update(): scope to staff so this can never
-            // be used to delete an admin account by id, including the
-            // caller's own.
-            $deleted = User::where('user_type', 'staff')->where('id', $id)->delete();
+        // Same reasoning as update(): scope to staff so this can never be
+        // used to delete an admin account by id, the caller's own included.
+        User::where('user_type', 'staff')->findOrFail($id)->delete();
 
-            return $deleted
-                ? $this->jsonSuccess('Staff deleted successfully.')
-                : $this->jsonError('Delete failed.');
-        } catch (\Exception $e) {
-            return $this->jsonError($e->getMessage());
-        }
+        return $this->jsonSuccess('Staff member deleted.');
     }
 }

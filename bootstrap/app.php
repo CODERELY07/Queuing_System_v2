@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserType;
+use App\Http\Middleware\ProtectDemoAccounts;
 use App\Http\Middleware\UpdateLastSeen;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'user_type' => EnsureUserType::class,
+            'protect_demo' => ProtectDemoAccounts::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -20,34 +20,38 @@ Route::get('/', function () {
 })->name('home');
 
 // Dashboard
-Route::get('/dashboard/{user_type}', [UserController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');Route::get('/dashboard', function () {
-    $user = Auth::user();
-    return redirect()->route('dashboard.with_type', ['user_type' => $user->user_type]);
-})->middleware(['auth', 'verified'])->name('dashboard');
+//
+// `dashboard` is the stable, type-less entry point (Breeze's redirects and
+// tests use it); `dashboard.with_type` is the real page. They used to be
+// registered on a single line with the *same name*, and the typed path was
+// registered twice — so route('dashboard', [...]) resolved to whichever won
+// and every sidebar click took an extra redirect hop.
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', fn () => redirect()->route('dashboard.with_type', ['user_type' => Auth::user()->user_type]))
+        ->name('dashboard');
 
-
-Route::get('/dashboard/{user_type}', [UserController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard.with_type');
-
+    Route::get('/dashboard/{user_type}', [UserController::class, 'index'])
+        ->whereIn('user_type', ['admin', 'staff'])
+        ->name('dashboard.with_type');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::patch('/profile', [ProfileController::class, 'update'])->middleware('protect_demo')->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->middleware('protect_demo')->name('profile.destroy');
 });
-
 
 // Display Routes
 Route::prefix('display')->group(function () {
     Route::get('/', [DisplayAllQueueController::class, 'index'])->name('display');
-    Route::get('/serving-patients', [DisplayAllQueueController::class, 'servingPatients']);
+    Route::get('/serving-patients', [DisplayAllQueueController::class, 'servingPatients'])->name('display.data');
 
-    // One big, dedicated screen per department (e.g. /display/2 for
-    // Doctor Consultation) — for mounting at that department's own
-    // waiting area, rather than everyone sharing the all-services board.
+    // One big, dedicated screen per department (e.g. /display/doctor-
+    // consultation) — for mounting at that department's own waiting
+    // area, rather than everyone sharing the all-services board.
     // Must stay after the literal /serving-patients route above, or this
-    // wildcard would swallow it first.
+    // wildcard would swallow it first (Service::uniqueSlug() reserves that
+    // slug for the same reason).
     Route::get('/{service:slug}', [DisplayAllQueueController::class, 'show'])->name('display.show');
     Route::get('/{service:slug}/serving-patient', [DisplayAllQueueController::class, 'servingPatient'])->name('display.show.data');
 });
@@ -59,15 +63,15 @@ Route::prefix('display')->group(function () {
 // stops a logged-in *admin* from hitting them too (both roles carry a
 // service_id — admin's is the internal "Admin" bucket — so nothing else
 // would have stopped that).
-Route::prefix('staff')->middleware(['auth', 'verified', 'user_type:staff'])->group(function () {
-    Route::post('/call-next', [StaffController::class, 'callNext'])->name('staff.call-next');
-    Route::post('/call-previous', [StaffController::class, 'callPrevious']);
-    Route::post('/call', [StaffController::class, 'call']);
-    Route::post('/call/{id}', [StaffController::class, 'selectedCall']);
-    Route::post('/skip', [StaffController::class, 'skip'])->name('staff.skip');
-    Route::get('/dashboard-data', [StaffController::class, 'data']);
+Route::prefix('staff')->middleware(['auth', 'verified', 'user_type:staff'])->controller(StaffController::class)->group(function () {
+    Route::post('/call-next', 'callNext')->name('staff.call-next');
+    Route::post('/call-previous', 'callPrevious')->name('staff.call-previous');
+    Route::post('/call', 'call')->name('staff.call');
+    Route::post('/call/{id}', 'selectedCall')->whereNumber('id')->name('staff.call-selected');
+    Route::post('/skip', 'skip')->name('staff.skip');
+    Route::get('/dashboard-data', 'data')->name('staff.data');
+    Route::get('/queue-table', 'queueTable')->name('staff.queue-table');
 });
-
 
 // Admin Routes
 //
@@ -75,50 +79,46 @@ Route::prefix('staff')->middleware(['auth', 'verified', 'user_type:staff'])->gro
 // they were actually an admin, so a staff account could reach every one of
 // these by just knowing the URL. `user_type:admin` closes that.
 Route::prefix('admin')->middleware(['auth', 'verified', 'user_type:admin'])->group(function () {
-    Route::get('/', function () {
-        return view('admin.index');
-    })->name('admin');
+    // The old /admin welcome page only linked to pages the sidebar already
+    // reaches; /admin now just lands on the real dashboard.
+    Route::get('/', fn () => redirect()->route('dashboard.with_type', ['user_type' => 'admin']))->name('admin');
 
-    // Only index/destroy are implemented on the controller — leaving this
-    // as a full resource() registered create/show/edit/update routes to
-    // nothing and every one of them 500'd with "method does not exist"
-    // if actually hit.
-    Route::resource('queues', AdminQueueController::class)->only(['index', 'destroy'])->names([
-        'index' => 'admin.queues',
-    ]);
+    // Only index/destroy exist on the controller. These used to be a
+    // Route::resource(), which also registered create/show/edit/update
+    // routes pointing at nothing — every one of them 500'd with "method
+    // does not exist".
+    Route::get('/queues', [AdminQueueController::class, 'index'])->name('admin.queues');
+    Route::delete('/queues/{id}', [AdminQueueController::class, 'destroy'])->whereNumber('id')->name('queues.destroy');
 
     Route::delete('/delete-old', [AdminQueueController::class, 'deleteOld'])->name('queues.deleteOld');
     Route::get('/queues-archive', [AdminQueueController::class, 'archived'])->name('queues.archived');
-    Route::post('/queues/{id}/restore', [AdminQueueController::class, 'restore'])->name('queues.restore');
-    Route::delete('/queues/{id}/purge', [AdminQueueController::class, 'purge'])->name('queues.purge');
+    Route::post('/queues/{id}/restore', [AdminQueueController::class, 'restore'])->whereNumber('id')->name('queues.restore');
+    Route::delete('/queues/{id}/purge', [AdminQueueController::class, 'purge'])->whereNumber('id')->name('queues.purge');
 
-     // CRUD
-    Route::controller(App\Http\Controllers\AdminStaffController::class)->group(function () {
+    Route::controller(AdminStaffController::class)->group(function () {
         Route::get('/staff', 'index')->name('admin.staff');
-        Route::post('/store', 'store')->name('staff.store');
-        Route::put('/staff/update/{id}', 'update')->name('staff.update');
-        Route::delete('/staff/destroy/{id}', 'destroy')->name('staff.destroy');
+        Route::post('/staff', 'store')->name('staff.store');
+        Route::put('/staff/{id}', 'update')->whereNumber('id')->name('staff.update');
+        Route::delete('/staff/{id}', 'destroy')->whereNumber('id')->name('staff.destroy');
     });
 
     Route::controller(AdminServiceController::class)->group(function () {
         Route::get('/services', 'index')->name('admin.services');
         Route::post('/services', 'store')->name('services.store');
-        Route::put('/services/{id}', 'update')->name('services.update');
-        Route::delete('/services/{id}', 'destroy')->name('services.destroy');
+        Route::put('/services/{id}', 'update')->whereNumber('id')->name('services.update');
+        Route::delete('/services/{id}', 'destroy')->whereNumber('id')->name('services.destroy');
     });
 });
 
-// Queues Route
-Route::prefix('kiosk')->name('kiosk')->group(function () {
-    Route::controller(ClientQueueController::class)->group(function () {
-        Route::get('/', 'index');
-        // Route::get('/ticket', 'kiosk.ticket')->name('.ticket');
-        Route::post('/', 'store')->name('.store');  
-    });
+// Kiosk
+//
+// The one public write endpoint, so it's rate-limited: a visitor needs a
+// handful of tickets a minute at most, and without a cap a script could
+// flood a department's queue (and the broadcast channel) with fake ones.
+Route::prefix('kiosk')->controller(ClientQueueController::class)->group(function () {
+    Route::get('/', 'index')->name('kiosk');
+    Route::post('/', 'store')->middleware('throttle:20,1')->name('kiosk.store');
+    Route::get('/ticket', 'show')->name('kiosk.ticket');
 });
-
-
-
-
 
 require __DIR__.'/auth.php';

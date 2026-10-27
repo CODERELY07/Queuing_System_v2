@@ -24,14 +24,20 @@ class QueueStatsService
      */
     public function todayCounts(?int $serviceId = null): array
     {
-        $today = ClientQueues::whereDate('created_at', now())
-            ->when($serviceId, fn ($query) => $query->where('service_id', $serviceId));
+        // One grouped query instead of four separate counts — every
+        // round trip to a hosted database is tens of milliseconds, and
+        // this runs on every dashboard load and every live refresh.
+        $byStatus = ClientQueues::today()
+            ->when($serviceId, fn ($query) => $query->where('service_id', $serviceId))
+            ->selectRaw('status, COUNT(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         return [
-            'waiting' => (clone $today)->where('status', 'waiting')->count(),
-            'skipped' => (clone $today)->where('status', 'skipped')->count(),
-            'finished' => (clone $today)->where('status', 'finish')->count(),
-            'total' => (clone $today)->count(),
+            'waiting' => (int) ($byStatus['waiting'] ?? 0),
+            'skipped' => (int) ($byStatus['skipped'] ?? 0),
+            'finished' => (int) ($byStatus['finish'] ?? 0),
+            'total' => (int) $byStatus->sum(),
         ];
     }
 
@@ -41,17 +47,18 @@ class QueueStatsService
      * separate "serving started" timestamp on the queue row.
      *
      * The minute-difference expression isn't portable SQL — MySQL has
-     * TIMESTAMPDIFF(), Postgres doesn't — so it's picked per driver rather
-     * than assuming MySQL.
+     * TIMESTAMPDIFF(), Postgres and SQLite don't — so it's picked per
+     * driver rather than assuming MySQL.
      */
     public function avgTurnaroundMinutesToday(): ?float
     {
         $diffInMinutes = match (DB::connection()->getDriverName()) {
             'pgsql' => 'EXTRACT(EPOCH FROM (updated_at - created_at)) / 60',
+            'sqlite' => '(julianday(updated_at) - julianday(created_at)) * 1440',
             default => 'TIMESTAMPDIFF(MINUTE, created_at, updated_at)',
         };
 
-        return ClientQueues::whereDate('created_at', now())
+        return ClientQueues::today()
             ->where('status', 'finish')
             ->avg(DB::raw($diffInMinutes));
     }
@@ -93,7 +100,7 @@ class QueueStatsService
     public function busiestServiceToday(): ?ClientQueues
     {
         return ClientQueues::withTrashed()
-            ->whereDate('created_at', now())
+            ->today()
             ->select('service_id', DB::raw('count(*) as total'))
             ->groupBy('service_id')
             ->orderByDesc('total')

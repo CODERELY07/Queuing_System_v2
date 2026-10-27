@@ -8,6 +8,7 @@ use Illuminate\View\View;
 class GuestLayout extends Component
 {
     /**
+     * @param string|null $title Browser-tab title ("Kiosk · MedQueue").
      * @param bool $flush Skip the layout's default vertical padding around
      *                     the page content. The homepage builds its own
      *                     hero-to-footer rhythm and needs to sit flush
@@ -23,8 +24,12 @@ class GuestLayout extends Component
      *                         reason to invite navigation away from
      *                         themselves.
      */
-    public function __construct(public bool $flush = false, public bool $hideFooter = false, public bool $hideHeader = false)
-    {
+    public function __construct(
+        public ?string $title = null,
+        public bool $flush = false,
+        public bool $hideFooter = false,
+        public bool $hideHeader = false,
+    ) {
     }
 
     /**

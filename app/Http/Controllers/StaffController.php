@@ -2,20 +2,36 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Services\QueueCallService;
+use App\Services\StaffQueueService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 
 class StaffController extends Controller
 {
-    public function __construct(private readonly QueueCallService $queueCalls)
-    {
+    public function __construct(
+        private readonly QueueCallService $queueCalls,
+        private readonly StaffQueueService $tickets,
+    ) {
     }
 
     public function data(): JsonResponse
     {
         return response()->json($this->queueCalls->dashboardSnapshot($this->currentServiceId()));
+    }
+
+    /**
+     * Just the ticket table's markup, for counter.js to swap in when a new
+     * ticket arrives — far cheaper than re-rendering (and re-downloading)
+     * the whole dashboard page to pick up one row.
+     */
+    public function queueTable(Request $request): View
+    {
+        return view('staff.partials.queue-table', [
+            'queues' => $this->tickets->paginate($this->currentServiceId(), $request),
+        ]);
     }
 
     public function callNext(): JsonResponse
@@ -38,9 +54,9 @@ class StaffController extends Controller
         return $this->respond($this->queueCalls->recall($this->currentServiceId()));
     }
 
-    public function selectedCall($id): JsonResponse
+    public function selectedCall(int $id): JsonResponse
     {
-        return $this->respond($this->queueCalls->callSelected($this->currentServiceId(), (int) $id));
+        return $this->respond($this->queueCalls->callSelected($this->currentServiceId(), $id));
     }
 
     /**

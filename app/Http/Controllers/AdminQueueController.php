@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\ClientQueues;
 use App\Services\QueueArchiveService;
 use App\Services\QueueStatsService;
@@ -25,7 +24,7 @@ class AdminQueueController extends Controller
         $queues = ClientQueues::with('service')
             ->search(request('q'))
             ->sortBy(request('sort'), request('dir'))
-            ->paginate(5)
+            ->paginate(10)
             ->withQueryString();
 
         $counts = $this->stats->todayCounts();
@@ -47,13 +46,13 @@ class AdminQueueController extends Controller
      * drops off the active list and can be recovered from the archive
      * (see archived()/restore()) if it was a mistake.
      */
-    public function destroy($id): RedirectResponse
+    public function destroy(int $id): RedirectResponse
     {
         $queue = ClientQueues::findOrFail($id);
 
         if ($queue->created_at->isSameDay(now())) {
             return redirect()->back()
-                ->with('error', 'You can only delete queues from previous days This Queue is New.');
+                ->with('error', 'Only tickets from previous days can be deleted — this one is from today.');
         }
 
         $queue->delete();
@@ -72,7 +71,7 @@ class AdminQueueController extends Controller
         return redirect()->back()
             ->with('success', $deleted > 0
                 ? 'Queues from previous days have been moved to the archive.'
-                : 'No old queues to delete, All Queue is New.');
+                : 'There are no old queues to delete — every ticket is from today.');
     }
 
     /**
@@ -90,9 +89,9 @@ class AdminQueueController extends Controller
     /**
      * Bring an archived ticket back onto the active queues list.
      */
-    public function restore($id): RedirectResponse
+    public function restore(int $id): RedirectResponse
     {
-        $this->archive->restore((int) $id);
+        $this->archive->restore($id);
 
         return redirect()->back()->with('success', 'Queue restored to the active list.');
     }
@@ -100,9 +99,9 @@ class AdminQueueController extends Controller
     /**
      * Permanently erase an archived ticket.
      */
-    public function purge($id): RedirectResponse
+    public function purge(int $id): RedirectResponse
     {
-        $this->archive->purge((int) $id);
+        $this->archive->purge($id);
 
         return redirect()->back()->with('success', 'Queue permanently deleted.');
     }

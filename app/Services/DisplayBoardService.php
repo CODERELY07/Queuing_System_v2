@@ -27,11 +27,11 @@ class DisplayBoardService
     {
         $serving = $service->relationLoaded('clientQueues')
             ? $service->clientQueues->first()
-            : $service->clientQueues()->where('status', 'serving')->orderBy('queue_number')->first();
+            : $service->clientQueues()->where('status', 'serving')->today()->orderBy('queue_number')->first();
 
         $next = $service->relationLoaded('waitingQueues')
             ? $service->waitingQueues
-            : $service->waitingQueues()->limit(3)->get();
+            : $service->waitingQueues()->today()->limit(3)->get();
 
         return [
             'service_name' => $service->name,
@@ -54,9 +54,9 @@ class DisplayBoardService
     {
         $services = Service::publicFacing()
             ->with(['clientQueues' => function ($query) {
-                $query->where('status', 'serving')->orderBy('queue_number')->limit(1);
+                $query->where('status', 'serving')->today()->orderBy('queue_number')->limit(1);
             }, 'waitingQueues' => function ($query) {
-                $query->limit(3);
+                $query->today()->limit(3);
             }])
             ->get();
 

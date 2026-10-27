@@ -38,6 +38,21 @@ class ClientQueues extends Model
     }
 
     /**
+     * Only tickets issued today (in the app's configured timezone — see
+     * APP_TIMEZONE).
+     *
+     * The live queue — who's up next, who's being served — is a
+     * per-day concept: the dashboards' "today" counters already worked
+     * that way, but the call logic didn't, so a ticket nobody ever closed
+     * out yesterday kept sorting ahead of this morning's first visitor
+     * (ticket numbers never reset, so it always had the lowest number).
+     */
+    public function scopeToday(Builder $query): Builder
+    {
+        return $query->whereDate('created_at', now());
+    }
+
+    /**
      * Order waiting tickets the way a counter should call them: priority
      * lane (senior/PWD/pregnant) ahead of the regular line, oldest ticket
      * first within each.
@@ -48,19 +63,41 @@ class ClientQueues extends Model
     }
 
     /**
-     * Filter by the topbar's "Search for anything" box — matches a name or
-     * an exact ticket number, whichever the term looks like.
+     * The staff table's default order: the work in front of the counter
+     * first (who's being served, then who's waiting in call order), the
+     * done-with tickets after. A plain queue-number sort put the day's
+     * first, long-finished tickets on page one and buried everyone still
+     * waiting on page three.
+     */
+    public function scopeWorkOrder(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw("CASE status WHEN 'serving' THEN 0 WHEN 'waiting' THEN 1 WHEN 'skipped' THEN 2 ELSE 3 END")
+            ->orderByDesc('priority')
+            ->orderBy('queue_number');
+    }
+
+    /**
+     * Filter by the topbar search box — matches a name, or an exact ticket
+     * number when the term is numeric.
+     *
+     * whereLike(), not where('name', 'like', ...): plain LIKE is
+     * case-sensitive on Postgres (which production runs), so searching
+     * "maria" would never have found "Maria". whereLike() picks ILIKE
+     * there and stays case-insensitive everywhere.
      */
     public function scopeSearch(Builder $query, ?string $term): Builder
     {
-        if (!$term) {
+        $term = trim((string) $term);
+
+        if ($term === '') {
             return $query;
         }
 
         return $query->where(function (Builder $q) use ($term) {
-            $q->where('name', 'like', "%{$term}%");
+            $q->whereLike('name', "%{$term}%");
 
-            if (is_numeric($term)) {
+            if (ctype_digit($term)) {
                 $q->orWhere('queue_number', (int) $term);
             }
         });

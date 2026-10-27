@@ -8,6 +8,8 @@ use Illuminate\Support\Str;
 
 class Service extends Model
 {
+    private const RESERVED_SLUGS = ['serving-patients'];
+
     // Deliberately excludes is_internal — it's a fixed system concept (one
     // seeded row) rather than something the admin Services CRUD form
     // should ever be able to set, so it can't be mass-assigned even by
@@ -50,8 +52,12 @@ class Service extends Model
         $slug = $base;
         $suffix = 2;
 
+        // "serving-patients" is the literal /display/serving-patients JSON
+        // route, registered ahead of the /display/{slug} wildcard — a
+        // department slugged that way would be unreachable.
         while (
-            static::where('slug', $slug)
+            in_array($slug, self::RESERVED_SLUGS, true)
+            || static::where('slug', $slug)
                 ->when($ignoreId, fn ($query) => $query->where('id', '!=', $ignoreId))
                 ->exists()
         ) {
