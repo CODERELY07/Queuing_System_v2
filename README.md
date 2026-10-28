@@ -25,7 +25,7 @@ For a deeper look at any part of the system, see the **[full documentation](docs
 | Auth | Laravel Breeze |
 | Frontend | Blade, Alpine.js, Tailwind CSS |
 | Build tool | Vite |
-| Database | MySQL |
+| Database | MySQL or PostgreSQL |
 | Testing | Pest |
 
 ## Requirements
@@ -33,7 +33,7 @@ For a deeper look at any part of the system, see the **[full documentation](docs
 - PHP 8.2+
 - Composer
 - Node.js & npm
-- MySQL
+- MySQL or PostgreSQL
 
 ## Installation
 
@@ -97,7 +97,7 @@ The app will be available at `http://localhost:8000`.
 
 ```
 app/
-  Events/            Broadcast events (QueueCallEvent, QueueNextEvent, QueuePrevEvent)
+  Events/            Broadcast events (QueueCallEvent, QueueNextEvent, QueueUpdatedEvent)
   Http/
     Controllers/     Thin controllers — resource actions + HTTP glue only
     Middleware/       EnsureUserType (role guard), UpdateLastSeen (staff activity)
@@ -105,11 +105,12 @@ app/
   Models/            ClientQueues, Service, User
   Services/          Business logic that isn't a plain CRUD resource action
 resources/
-  css/, js/          Tailwind entry + Alpine-driven page scripts (queuing.js, staff.js, print.js)
+  css/, js/          Tailwind entry + page scripts (counter.js, display.js, admin-forms.js, print.js, lib/)
   views/             Blade templates, organized by area (admin/, staff/, kiosk/, display/, auth/)
 routes/
   web.php            Every route in the app (no api.php — this is a server-rendered app)
-docs/                Module-by-module documentation (see docs/README.md)
+docs/                Module-by-module documentation (see docs/README.md);
+                     docs/adding-features.md explains how to add or change a feature
 ```
 
 See [architecture.md](docs/architecture.md) for why the code is laid out this way.

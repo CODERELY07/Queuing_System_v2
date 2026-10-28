@@ -6,7 +6,7 @@ The counter-side screen a staff member keeps open all shift. One account per dep
 - **Controller**: `App\Http\Controllers\StaffController`
 - **Service class**: `App\Services\QueueCallService`
 - **View**: `resources/views/staff/dashboard.blade.php`
-- **Frontend**: `resources/js/queuing.js`
+- **Frontend**: `resources/js/counter.js`
 - **Access**: `user_type:staff` only — see [authentication.md](authentication.md)
 
 ## Features
@@ -44,17 +44,17 @@ Marking a ticket `skipped` broadcasts `QueueNextEvent`, which tells both display
 
 ### Every action result feeds back into the UI, not just the console
 
-Each button's `fetch()` call checks the response for `{success: false, message: "..."}` and shows it via `alert()` if present — e.g. clicking "No-show" with nobody being served now tells the staff member why nothing happened, rather than silently doing nothing.
+Each button's `fetch()` call checks the response for `{success: false, message: "..."}` and shows it as a toast if present — e.g. clicking "No-show" with nobody being served now tells the staff member why nothing happened, rather than silently doing nothing.
 
 ### One shared "busy" lock across every action
 
-"Next Patient", "Previous Patient", "Recall", "No-show", and every row's own "Call" button all share one `staffActionsBusy` flag (`resources/js/queuing.js`). Starting any one of them disables all the others until it resolves. This exists because none of the main four buttons used to guard against a second click landing before the first request's response came back — clicking "Next Patient" twice quickly (or "No-show" while "Next Patient" was still in flight) could fire two overlapping requests against the same ticket, which is exactly how a patient ends up silently skipped or the counter ends up in a state nobody actually clicked for. The per-row "Call" button already learned this lesson once, for a different reason — see the comment at the top of `queuing.js` about the recursion bug that predates this.
+"Next Patient", "Previous Patient", "Recall", "No-show", and every row's own "Call" button all share one `busy` flag (`setBusy()` in `resources/js/counter.js`). Starting any one of them disables all the others until it resolves. This exists because none of the main four buttons used to guard against a second click landing before the first request's response came back — clicking "Next Patient" twice quickly (or "No-show" while "Next Patient" was still in flight) could fire two overlapping requests against the same ticket, which is exactly how a patient ends up silently skipped or the counter ends up in a state nobody actually clicked for. The per-row "Call" button already learned this lesson once, for a different reason — see the comments in `counter.js`.
 
 While busy, the four main buttons get `disabled` plus a dimmed/`cursor-not-allowed` treatment so it's visually obvious an action is still processing, not just functionally blocked.
 
 ## How the dashboard stays in sync
 
-Every button's own result updates the screen immediately (see above). Beyond that, the dashboard also listens for `.queue.updated` — broadcast whenever a new ticket is issued at the kiosk (see [realtime.md](realtime.md)) — filtered to this department only, via a `data-service-id` attribute rendered into a hidden `#staff-dashboard-meta` element. On a match it refreshes both the top panel (`loadDashboardData()`) and the ticket table below (`refreshQueueTable()`, a partial fetch-and-swap of `#queue-table-panel` that preserves the current page/sort/search rather than a full reload) — so a new ticket shows up on a staff member's screen without them touching anything.
+Every button's own result updates the screen immediately (see above). Beyond that, the dashboard also listens for `.queue.updated` — broadcast whenever a new ticket is issued at the kiosk (see [realtime.md](realtime.md)) — filtered to this department only, via a `data-service-id` attribute rendered into a hidden `#staff-dashboard-meta` element. On a match it refreshes the top panel and the ticket table below (`refreshAll()` in `counter.js`; the table is a partial fetch-and-swap of `#queue-table-panel` that preserves the current page/sort/search rather than a full reload) — so a new ticket shows up on a staff member's screen without them touching anything.
 
 Staff still don't see each other's *actions* live — calling, skipping, recalling. Two staff accounts sharing one department's counter won't see each other's calls without taking an action of their own, but in practice each department has exactly one staff account, so this hasn't been a practical problem.
 

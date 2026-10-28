@@ -1,6 +1,6 @@
 # Real-time Broadcasting
 
-MedQueue uses Laravel Reverb (a self-hosted WebSocket server) with Laravel Echo on the frontend. There's exactly one public broadcast channel — `queue` — and four events on it.
+MedQueue uses Laravel Reverb (a self-hosted WebSocket server) with Laravel Echo on the frontend. There's exactly one public broadcast channel — `queue` — and three events on it.
 
 ## Setup
 
@@ -8,62 +8,42 @@ Reverb must be running alongside the app (`php artisan reverb:start`) — see th
 
 The `queue` channel is a plain public `Channel`, not a `PrivateChannel` — there's no entry in `routes/channels.php` for it, and none is needed, since nothing broadcast on it is sensitive (ticket numbers and first names, already shown on a physical waiting-room screen).
 
-## The four events
+## The three events
 
-All four implement `ShouldBroadcastNow` (synchronous — no queue worker needed) and broadcast the same shape: `{id, name, status, service_id, queue_number}`.
+All three extend the abstract `QueueTicketEvent` (`ShouldBroadcastNow`, so no queue worker is needed) and broadcast `{id, status, service_id, queue_number}`. Only `QueueCallEvent` adds `name`, because the voice announcement needs it; nothing else on the public channel carries a visitor's name. Services dispatch them through `BroadcastsSafely::broadcastSafely()`, so an unreachable Reverb server is logged instead of failing the staff action.
 
 | Event | Broadcast name | Fired by | Fired when |
 |---|---|---|---|
 | `QueueCallEvent` | `.queue.call` | `QueueCallService::recall()`, `::callSelected()` | A ticket is called or re-announced — "Recall", or picking a specific ticket off the table |
 | `QueueNextEvent` | `.queue.next` | `QueueCallService::callNext()`, `::callPrevious()`, `::skip()` | Queue state changed in a way that isn't a fresh "call" — advancing to the next patient, undoing to the previous one, or a no-show |
 | `QueueUpdatedEvent` | `.queue.updated` | `ClientQueueService::createTicket()` | A new ticket was issued at the kiosk |
-| `QueuePrevEvent` | `.queue.prev` | *(nothing currently)* | Defined but unused — `callPrevious()` fires `QueueNextEvent`, not this. Kept for now in case a future change wants to distinguish "went back" from "went forward" on the frontend |
 
-`app/Events/*.php` — all four are near-identical; `QueueNextEvent`'s constructor also logs the payload via `Log::debug()` for local debugging.
+`app/Events/` — `QueueTicketEvent` (base) plus one small subclass per event, each only setting its `broadcastAs()` name.
 
-## What listens, and where (`resources/js/queuing.js`)
+## What listens, and where
+
+Listeners use `resources/js/lib/realtime.js` (`listen`, `onReconnect`, `poll`, `isConnected`), which also drives the on-screen "Live / Reconnecting" indicator.
 
 ```js
-window.Echo.channel('queue').listen('.queue.call', (event) => {
-    VoiceQueue(event);       // speaks "{name}, ticket number {queue_number}, please come in" —
-                              // only on the all-services board, or a department's own board when
-                              // the call is for that department
-    displayQeueue(event);    // re-fetches /display/serving-patients (all-services board)
-    displaySingleQueue();    // re-fetches /display/{slug}/serving-patient (single-department board)
-});
+// resources/js/display.js: both display boards
+listen(['.queue.call'], speak);                    // voice: "{name}, ticket number {n}, please come in"
+listen(['.queue.call', '.queue.next'], reload);    // re-fetch the serving list / single-department panel
+onReconnect(reload);                               // events missed while offline
+poll(reload);                                      // fallback refresh while the socket is down
 
-window.Echo.channel('queue').listen('.queue.next', (event) => {
-    displayQeueue(event);
-    displaySingleQueue();
-});
-
-window.Echo.channel('queue').listen('.queue.prev', (event) => {
-    displayQeueue(event);
-    displaySingleQueue();
-});
-
-// The one listener the staff dashboard actually cares about — everything
-// above is display-board-only.
-window.Echo.channel('queue').listen('.queue.updated', (ticket) => {
-    if (window.location.pathname !== '/dashboard/staff') return;
-
-    const meta = document.getElementById('staff-dashboard-meta');
-    if (!meta || String(meta.dataset.serviceId) !== String(ticket.service_id)) return;
-
-    loadDashboardData();   // "Currently Serving" + "Up Next"
-    refreshQueueTable();   // the paginated table below
-});
+// resources/js/counter.js: staff dashboard
+listen(['.queue.updated', '.queue.next', '.queue.call'], refreshAll);
+onReconnect(refreshAll);
+poll(refreshAll, 10000);
 ```
 
-Every listener **re-fetches from the server** rather than trusting the event payload to build the new UI state — the event is just a "something changed, go check" signal. This is why firing an event more than once for the same logical change (which used to happen in `callNext()` before it was refactored into `QueueCallService`) was only ever wasted network traffic, never a correctness bug: whichever fetch lands last always reflects the true current state.
+Every listener **re-fetches from the server** rather than trusting the event payload to build the new UI state; the event is just a "something changed, go check" signal. Firing an event more than once for the same change is therefore only wasted traffic, never a correctness bug.
 
-### The staff dashboard's own listener
+### The staff dashboard's filter
 
-Unlike the display-board listeners, `.queue.updated` **is** filtered — every department's kiosk submissions broadcast on the same public `queue` channel, so without checking `service_id` against a `data-service-id` attribute rendered into the page (`staff-dashboard.md`'s `#staff-dashboard-meta` element), Pharmacy's dashboard would refresh every time Registration got a new ticket.
+`counter.js` only runs when `#staff-dashboard-meta` exists, and ignores an event whose `service_id` differs from that element's `data-service-id`. Every department broadcasts on the same public `queue` channel, so without this check Pharmacy's counter would refresh every time Registration issued a ticket.
 
-`refreshQueueTable()` doesn't reload the page — it re-fetches the *same* URL (preserving whatever page/sort/search is currently in it) and swaps in just the `#queue-table-panel` element parsed out of that response, so a new ticket shows up without losing scroll position or text mid-typed into the search box. The panel dims (`opacity-50`) while that fetch is in flight, and `bindSelectedCallButtons()` re-runs afterward since the replaced buttons are new DOM nodes with no click handlers of their own yet.
-
-Staff still don't see each other's *actions* live (calling/skipping) — only new tickets arriving. Two staff accounts sharing one department's counter still won't see each other's calls without taking an action of their own, but in practice each department has exactly one staff account, so this hasn't been a practical problem.
+`refreshAll()` doesn't reload the page: it re-fetches the dashboard data and swaps in just the `#queue-table-panel` element, so scroll position and text typed into the search box survive. While an action request is in flight the buttons are disabled (`setBusy`) to prevent double submits.
 
 ## Voice announcements
 

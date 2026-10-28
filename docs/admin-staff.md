@@ -6,7 +6,7 @@ Full CRUD on staff logins.
 - **Controller**: `App\Http\Controllers\AdminStaffController`
 - **Requests**: `App\Http\Requests\Admin\StoreStaffRequest`, `App\Http\Requests\Admin\UpdateStaffRequest`
 - **Views**: `resources/views/admin/staff.blade.php`, `resources/views/partials/admin/staff-table.blade.php`, `resources/views/partials/admin/staff-modal.blade.php`
-- **Frontend**: `resources/js/staff.js` (generic AJAX handler shared with [Service Management](admin-services.md))
+- **Frontend**: `resources/js/admin-forms.js` (generic AJAX handler shared with [Service Management](admin-services.md))
 - **Access**: `user_type:admin` only
 
 ## Features
@@ -16,7 +16,7 @@ Full CRUD on staff logins.
 - **Edit** — same fields, but the password is optional: leave both password fields blank to keep the current one.
 - **Delete** — with a confirmation modal.
 
-All three write actions go through AJAX (`fetch`, not a form POST navigation) and return `{status: 'success'|'error', message}`, rendered as a JS `alert()` — a page reload only happens on success.
+All three write actions go through AJAX (`fetch`, not a form POST navigation) and return `{status: 'success'|'error', message}`, shown inside the modal's error list on failure; on success the page reloads and a toast confirms it.
 
 ## Validation
 
@@ -27,7 +27,7 @@ All three write actions go through AJAX (`fetch`, not a form POST navigation) an
 | `service_id` | required, integer, must exist in `services` | same |
 | `password` | required, confirmed | **optional** (`nullable`), confirmed if present |
 
-A validation failure returns a proper `422 {errors: {field: [...]}}` response, which the frontend (`staff.js`) already parses into a single alert listing every problem — see [architecture.md](architecture.md#why-split-it-this-way) for why this only works correctly once validation moved into a Form Request instead of living inside a `try/catch`.
+A validation failure returns a proper `422 {errors: {field: [...]}}` response, which the frontend (`admin-forms.js`) already parses into the modal's error list, one line per problem — see [architecture.md](architecture.md#why-split-it-this-way) for why this only works correctly once validation moved into a Form Request instead of living inside a `try/catch`.
 
 ## Why every write is scoped to `user_type = 'staff'`
 

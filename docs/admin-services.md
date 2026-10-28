@@ -6,7 +6,7 @@ Full CRUD on departments — what used to be seed-only data (`database/seeders/S
 - **Controller**: `App\Http\Controllers\AdminServiceController`
 - **Requests**: `App\Http\Requests\Admin\StoreServiceRequest`, `App\Http\Requests\Admin\UpdateServiceRequest`
 - **Views**: `resources/views/admin/services.blade.php`, `resources/views/partials/admin/service-table.blade.php`, `resources/views/partials/admin/service-modal.blade.php`
-- **Frontend**: `resources/js/staff.js` (same generic AJAX handler as [Staff Management](admin-staff.md))
+- **Frontend**: `resources/js/admin-forms.js` (same generic AJAX handler as [Staff Management](admin-staff.md))
 - **Access**: `user_type:admin` only
 
 ## Features

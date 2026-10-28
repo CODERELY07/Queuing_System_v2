@@ -51,9 +51,10 @@ The one deliberate exception: `AdminQueueController::destroy()` — a real resou
 ```
 app/
   Events/
-    QueueCallEvent.php     Broadcasts "this ticket was just called" (public channel `queue`, event `.queue.call`)
-    QueueNextEvent.php     Broadcasts "queue state changed" (`.queue.next`) — after Next Patient or a no-show
-    QueuePrevEvent.php     Broadcasts on "Previous Patient" (`.queue.prev`) — currently unused by any listener
+    QueueTicketEvent.php   Abstract base: public channel `queue`, id/status/service/number payload
+    QueueCallEvent.php     "This ticket was just called" (`.queue.call`, also carries the name for the voice)
+    QueueNextEvent.php     "Queue state changed" (`.queue.next`): next, previous, no-show
+    QueueUpdatedEvent.php  "A new ticket was issued" (`.queue.updated`)
   Http/
     Controllers/
       Auth/                Laravel Breeze's stock login/register/password/verification controllers
@@ -94,9 +95,12 @@ resources/
     partials/admin/        Reusable table/modal partials shared by the staff and services CRUD pages
     components/            Design-system pieces (stat-card, status-badge, icon.*, modal, ...)
   js/
-    queuing.js             Staff dashboard actions + both display boards + voice announcements
-    staff.js                Generic AJAX form handler for the admin Staff/Services modals
-    print.js, echo.js       Ticket printing, Echo/Reverb client setup
+    counter.js             Staff dashboard actions + live refresh
+    display.js             Both display boards + voice announcements
+    admin-forms.js         Generic AJAX form handler for the admin Staff/Services modals
+    live-status.js         Alpine "Live / Reconnecting" indicator
+    print.js, echo.js      Ticket printing, Echo/Reverb client setup
+    lib/                   dom, http, realtime, toast helpers
 routes/
   web.php                  Every route — there is no routes/api.php
 docs/                      You are here

@@ -2,16 +2,19 @@
 
 This is the full reference for every module in MedQueue. Each page covers what the module does, who can use it, the routes/controllers/services behind it, and the business rules that aren't obvious just from reading the code.
 
+Want to add or change something? **[Adding & Changing Features](adding-features.md)** maps every feature to its files and has a step-by-step recipe for each kind of change.
+
 Start with **[Architecture](architecture.md)** if you're new to the codebase — it explains how the app is layered (Controllers / Services / Requests / Models) and why, which every other page assumes you already know.
 
 ## Reference
 
 | Doc | Covers |
 |---|---|
+| [Adding & Changing Features](adding-features.md) | Feature → files map, how-to recipes, pre-commit checklist |
 | [Architecture](architecture.md) | Layering conventions, directory structure, design decisions |
 | [Database Schema](database.md) | Every table, its columns, and how they relate |
 | [Authentication & Roles](authentication.md) | Login, `user_type`, and how admin/staff access is enforced |
-| [Real-time Broadcasting](realtime.md) | Reverb/Echo setup, the three broadcast events, what listens for them |
+| [Real-time Broadcasting](realtime.md) | Reverb/Echo setup, the broadcast events, what listens for them |
 
 ## Modules
 

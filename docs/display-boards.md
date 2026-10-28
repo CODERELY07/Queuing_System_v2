@@ -17,7 +17,7 @@ The waiting-room screens. Two flavors, both unauthenticated (meant to run full-s
 - **Controller**: `App\Http\Controllers\DisplayAllQueueController`
 - **Service class**: `App\Services\DisplayBoardService`
 - **Views**: `resources/views/display/counter.blade.php` (all-services), `resources/views/display/show.blade.php` (single department)
-- **Frontend**: `resources/js/queuing.js` (`displayQeueue()`, `displaySingleQueue()`)
+- **Frontend**: `resources/js/display.js` (reload on `.queue.call` / `.queue.next`, voice on `.queue.call`)
 
 Both JSON endpoints, and both page routes, exclude the internal "Admin" service (`Service::publicFacing()` for the listing pages; `abort_if($service->is_internal, 404)` on the single-department page) — see [database.md](database.md#the-internal-admin-service).
 
